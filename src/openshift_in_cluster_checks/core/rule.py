@@ -393,31 +393,139 @@ class OrchestratorRule(Rule):
     # run_data_collector is inherited from Rule - no override needed
     # Rule's implementation handles multi-host collection when _node_executors is present
 
-    def _get_pod_name(self, namespace: str, labels: dict) -> str:
+    def _select_resources(
+        self,
+        resource_type: str,
+        namespace: str | None = None,
+        labels: Dict[str, str] | None = None,
+        all_namespaces: bool = False,
+        timeout: int = 30,
+        single: bool = False,
+    ) -> list | Any | None:
+        """Execute oc.selector with consistent error handling and timeout management.
+
+        This is a generic wrapper around oc.selector() that provides:
+        - Consistent timeout management
+        - Standardized error handling with contextual logging
+        - Support for both .objects() (list) and .object() (single) patterns
+        - Validation of mutually exclusive parameters
+
+        Args:
+            resource_type: Resource type to select (e.g., "node", "pod", "network.operator/cluster")
+            namespace: Specific namespace to search in (mutually exclusive with all_namespaces)
+            labels: Dictionary of label selectors (e.g., {"app": "myapp"})
+            all_namespaces: Search across all namespaces (mutually exclusive with namespace)
+            timeout: Timeout in seconds (default: 30)
+            single: If True, return single object via .object() instead of list via .objects()
+
+        Returns:
+            - If single=True: Single resource object or None if not found
+            - If single=False: List of resource objects (empty list if none found or error)
+
+        Raises:
+            ValueError: If both namespace and all_namespaces are specified
         """
-        Get pod name from a namespace using label selectors.
+        # Validate mutually exclusive parameters
+        if namespace and all_namespaces:
+            raise ValueError("Cannot specify both 'namespace' and 'all_namespaces' parameters")
+
+        # Build command string for logging
+        cmd_parts = ["oc", "get", resource_type]
+        if namespace:
+            cmd_parts.extend(["-n", namespace])
+        elif all_namespaces:
+            cmd_parts.append("-A")
+        if labels:
+            label_str = ",".join([f"{k}={v}" for k, v in labels.items()])
+            cmd_parts.extend(["-l", label_str])
+        cmd_str = " ".join(cmd_parts)
+        self._add_cmd_to_log(cmd_str)
+
+        # In debug mode, print command BEFORE execution
+        if self.config.debug_rule_flag:
+            print(f"\n[DEBUG] Executing: {cmd_str}", flush=True)
+
+        try:
+            with oc.timeout(timeout):
+                # Build selector kwargs
+                selector_kwargs = {}
+                if labels:
+                    selector_kwargs["labels"] = labels
+                if all_namespaces:
+                    selector_kwargs["all_namespaces"] = True
+
+                # Create selector with appropriate context
+                if namespace:
+                    with oc.project(namespace):
+                        selector = oc.selector(resource_type, **selector_kwargs)
+                        result = selector.object() if single else selector.objects()
+                else:
+                    selector = oc.selector(resource_type, **selector_kwargs)
+                    result = selector.object() if single else selector.objects()
+
+                # In debug mode, print results after execution
+                if self.config.debug_rule_flag:
+                    if single:
+                        print(f"[DEBUG] Result: {result.name() if result else 'None'}", flush=True)
+                    else:
+                        print(f"[DEBUG] Found {len(result)} resources", flush=True)
+                        if result:
+                            for obj in result:
+                                print(f"[DEBUG]   - {obj.name()}", flush=True)
+                    print("=" * 60, flush=True)
+
+                return result
+
+        except Exception as e:
+            # In debug mode, print exception with command context
+            if self.config.debug_rule_flag:
+                print(f"[DEBUG] Command '{cmd_str}' failed with exception: {e}", flush=True)
+                print("=" * 60, flush=True)
+
+            # Log error with command context
+            self.logger.error(f"Failed to execute command '{cmd_str}': {e}")
+
+            # Return appropriate empty value
+            return None if single else []
+
+    def _get_pods(self, namespace: str = None, labels: dict = None, timeout: int = 30) -> list:
+        """Get pods from namespace with optional label filtering.
+
+        Args:
+            namespace: Namespace to search in. If None, searches all namespaces.
+            labels: Optional dict of label selectors (e.g., {"app": "rook-ceph-tools"})
+            timeout: Timeout in seconds (default: 30)
+
+        Returns:
+            List of pod objects, or empty list if none found
+        """
+        if namespace:
+            return self._select_resources("pod", namespace=namespace, labels=labels, timeout=timeout)
+        else:
+            return self._select_resources("pod", labels=labels, all_namespaces=True, timeout=timeout)
+
+    def _get_pod_name(self, namespace: str, labels: dict, log_errors: bool = True, timeout: int = 30) -> str | None:
+        """Get pod name from a namespace using label selectors.
 
         Args:
             namespace: Namespace to search in
             labels: Dictionary of label selectors (e.g., {"app": "rook-ceph-tools"})
+            log_errors: Whether to log messages as errors (True) or info (False). Default: True
+            timeout: Timeout in seconds (default: 30)
 
         Returns:
             Pod name if found, None otherwise
         """
-
-        try:
-            with oc.timeout(10):
-                with oc.project(namespace):
-                    pods = oc.selector("pod", labels=labels).objects()
-                    if pods:
-                        return pods[0].name()
-        except Exception as e:
-            self.logger.error(f"Failed to find pod in {namespace} with labels {labels}: {e}")
-            return None
+        pods = self._get_pods(namespace=namespace, labels=labels, timeout=timeout)
+        if pods:
+            return pods[0].name()
 
         # No pods found
         error_msg = f"No pod found in {namespace} namespace with labels {labels}"
-        self.logger.error(error_msg)
+        if log_errors:
+            self.logger.error(error_msg)
+        else:
+            self.logger.info(error_msg)
         return None
 
     def run_rsh_cmd(self, namespace: str, pod: str, command: str, timeout: int = 120) -> tuple:
