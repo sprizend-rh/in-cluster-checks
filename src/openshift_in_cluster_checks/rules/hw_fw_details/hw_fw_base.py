@@ -7,6 +7,7 @@ across nodes within the same host groups.
 
 import abc
 import json
+from collections import OrderedDict
 from typing import Any, Dict, List
 
 from openshift_in_cluster_checks.core.operations import DataCollector
@@ -236,8 +237,6 @@ class HwFwRule(OrchestratorRule):
         Returns:
             RuleResult with comparison status and details
         """
-        from collections import OrderedDict
-
         # Get the category key from child class ("hardware" or "firmware")
         category_key = self.get_data_category_key()
 

@@ -14,7 +14,10 @@ from openshift_in_cluster_checks.rules.hw_fw_details.collectors.bios_collectors 
     BIOSRevision,
     BIOSVersion,
 )
-from openshift_in_cluster_checks.rules.hw_fw_details.collectors.os_collectors import KernelVersion, OperatingSystemVersion
+from openshift_in_cluster_checks.rules.hw_fw_details.collectors.os_collectors import (
+    KernelVersion,
+    OperatingSystemVersion,
+)
 from openshift_in_cluster_checks.rules.hw_fw_details.hw_fw_base import HwFwRule
 
 

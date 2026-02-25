@@ -23,7 +23,6 @@ except ImportError:
     oc = None
 
 from openshift_in_cluster_checks.core.exceptions import HostNotReachable, UnExpectedSystemOutput
-import logging
 
 
 def _add_bash_timeout(cmd: str, timeout: int, timeout_kill_after_seconds: int = 60) -> str:

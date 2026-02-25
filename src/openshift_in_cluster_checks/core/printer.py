@@ -6,12 +6,12 @@ Outputs in Insights-compatible format similar to pg.json
 """
 
 import json
+import logging
 from collections import OrderedDict
 from typing import Any, Dict
 
 from openshift_in_cluster_checks.utils.enums import Status
 from openshift_in_cluster_checks.utils.secret_filter import SecretFilter
-import logging
 
 
 # ANSI color codes

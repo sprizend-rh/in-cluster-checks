@@ -8,7 +8,10 @@ Based on support/HealthChecks/flows/Network/network_flows_openshift.py
 from typing import List
 
 from openshift_in_cluster_checks.core.domain import RuleDomain
-from openshift_in_cluster_checks.rules.network.ovs_validations import Bond0DnsServersComparison, OvsInterfaceAndPortFound
+from openshift_in_cluster_checks.rules.network.ovs_validations import (
+    Bond0DnsServersComparison,
+    OvsInterfaceAndPortFound,
+)
 
 
 class NetworkValidationDomain(RuleDomain):

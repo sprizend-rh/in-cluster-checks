@@ -40,7 +40,11 @@ from openshift_in_cluster_checks.rules.hw_fw_details.collectors.nic_collectors i
     NICVendor,
     NICVersion,
 )
-from openshift_in_cluster_checks.rules.hw_fw_details.collectors.numa_collectors import NumaCpus, NumaNICs, NumaSizeMemory
+from openshift_in_cluster_checks.rules.hw_fw_details.collectors.numa_collectors import (
+    NumaCpus,
+    NumaNICs,
+    NumaSizeMemory,
+)
 from openshift_in_cluster_checks.rules.hw_fw_details.hw_fw_base import HwFwRule
 
 

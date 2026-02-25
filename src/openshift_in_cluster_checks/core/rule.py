@@ -6,6 +6,7 @@ Simplified for OpenShift use case.
 """
 
 import abc
+import logging
 from typing import Any, Dict
 
 import openshift_client as oc
@@ -335,8 +336,6 @@ class OrchestratorRule(Rule):
         # OrchestratorRule doesn't need a host_executor for command execution - it runs
         # locally and uses run_rsh_cmd for pod commands. However, we set _host_executor
         # to the first node executor for compatibility with run_data_collector inheritance.
-
-        import logging
 
         # Store node_executors for multi-host data collection
         self._node_executors = node_executors or {}

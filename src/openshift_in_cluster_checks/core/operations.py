@@ -6,12 +6,12 @@ Simplified for OpenShift use case.
 """
 
 import abc
+import logging
 import threading
 from typing import Any
 
 from openshift_in_cluster_checks import global_config
 from openshift_in_cluster_checks.utils.file_utils import FileUtils
-import logging
 
 
 class Operator:

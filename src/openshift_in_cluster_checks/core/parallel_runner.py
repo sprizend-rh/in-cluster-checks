@@ -5,16 +5,16 @@ Adapted from support/HealthChecks/HealthCheckCommon/parallel_runner.py
 Provides threading support for running rules across multiple hosts concurrently.
 """
 
+import logging
 import threading
 import time
 import traceback
 from typing import Any, Callable, Dict, List
 
+from openshift_in_cluster_checks import global_config
 from openshift_in_cluster_checks.core.exceptions import UnExpectedSystemOutput
 from openshift_in_cluster_checks.core.rule_result import RuleResult
-from openshift_in_cluster_checks import global_config
 from openshift_in_cluster_checks.utils.enums import Objectives, Status
-import logging
 
 
 class ParallelRunner:
