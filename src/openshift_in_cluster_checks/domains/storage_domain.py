@@ -8,7 +8,13 @@ Based on support/HealthChecks/flows/Storage/ceph/Ceph.py
 from typing import List
 
 from openshift_in_cluster_checks.core.domain import RuleDomain
-from openshift_in_cluster_checks.rules.storage.storage_validations import CephOsdTreeWorks
+from openshift_in_cluster_checks.rules.storage.storage_validations import (
+    CephOsdTreeWorks,
+    IsCephHealthOk,
+    IsCephOSDsNearFull,
+    IsOSDsUp,
+    IsOSDsWeightOK,
+)
 
 
 class StorageValidationDomain(RuleDomain):
@@ -31,4 +37,8 @@ class StorageValidationDomain(RuleDomain):
         """
         return [
             CephOsdTreeWorks,
+            IsCephHealthOk,
+            IsCephOSDsNearFull,
+            IsOSDsUp,
+            IsOSDsWeightOK,
         ]
