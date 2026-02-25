@@ -5,6 +5,8 @@ Adapted from support's OpenshiftHostExecutorFactory.
 Provides centralized creation and management of NodeExecutor instances.
 """
 
+import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List
 
 try:
@@ -14,7 +16,6 @@ except ImportError:
 
 from openshift_in_cluster_checks.core.executor import NodeExecutor
 from openshift_in_cluster_checks.utils.enums import Objectives
-import logging
 
 
 class NodeExecutorFactory:
@@ -169,8 +170,6 @@ class NodeExecutorFactory:
 
     def connect_all(self):
         """Connect to all nodes (create debug pods) in parallel."""
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
         self.logger.info(f"Connecting to {len(self._host_executors_dict)} nodes in parallel...")
 
         def connect_node(node_name, executor):

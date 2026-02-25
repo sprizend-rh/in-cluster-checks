@@ -6,11 +6,8 @@ It discovers domains, builds executors, runs rules, and generates reports.
 """
 
 import importlib
-import pkgutil
-from pathlib import Path
-from typing import Dict
-
 import logging
+import pkgutil
 from pathlib import Path
 from typing import Dict
 
@@ -34,7 +31,9 @@ class InClusterCheckRunner:
     - Summary statistics
     """
 
-    def __init__(self, config: InClusterCheckConfig | None = None, domain_package: str = "openshift_in_cluster_checks.domains"):
+    def __init__(
+        self, config: InClusterCheckConfig | None = None, domain_package: str = "openshift_in_cluster_checks.domains"
+    ):
         """
         Initialize runner.
 

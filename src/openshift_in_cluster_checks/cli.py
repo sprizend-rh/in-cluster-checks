@@ -11,7 +11,6 @@ import shutil
 import sys
 from pathlib import Path
 
-from openshift_in_cluster_checks import global_config
 from openshift_in_cluster_checks.interfaces.config import InClusterCheckConfig
 from openshift_in_cluster_checks.runner import InClusterCheckRunner
 

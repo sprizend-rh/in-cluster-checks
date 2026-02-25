@@ -9,14 +9,14 @@ Simplified for OpenShift use case.
 """
 
 import abc
+import logging
 from typing import Any, Dict, List
 
+from openshift_in_cluster_checks import global_config
 from openshift_in_cluster_checks.core.parallel_runner import ParallelRunner
 from openshift_in_cluster_checks.core.printer import StructedPrinter
 from openshift_in_cluster_checks.core.rule import Rule
-from openshift_in_cluster_checks import global_config
 from openshift_in_cluster_checks.utils.enums import Objectives
-import logging
 
 
 class RuleDomain(abc.ABC):
