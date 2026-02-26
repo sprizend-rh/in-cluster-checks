@@ -74,6 +74,8 @@ class StructedPrinter:
         problem_type: str = None,
         node_labels: str = "",
         system_info: dict = None,
+        table_headers: list = None,
+        table_data: list = None,
         extra: dict = None,
     ):
         """
@@ -137,6 +139,10 @@ class StructedPrinter:
             result["in_maintenance"] = in_maintenance
         if system_info is not None:
             result["system_info"] = system_info
+        if table_headers is not None:
+            result["table_headers"] = table_headers
+        if table_data is not None:
+            result["table_data"] = table_data
         if extra is not None:
             result["extra"] = extra
 

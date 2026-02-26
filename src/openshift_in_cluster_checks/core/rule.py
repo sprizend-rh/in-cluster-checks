@@ -11,6 +11,7 @@ from typing import Any, Dict
 
 import openshift_client as oc
 
+from openshift_in_cluster_checks import global_config
 from openshift_in_cluster_checks.core.exceptions import UnExpectedSystemOutput
 from openshift_in_cluster_checks.core.operations import FlowsOperator
 from openshift_in_cluster_checks.core.parallel_runner import ParallelRunner
@@ -442,7 +443,7 @@ class OrchestratorRule(Rule):
         self._add_cmd_to_log(cmd_str)
 
         # In debug mode, print command BEFORE execution
-        if self.config.debug_rule_flag:
+        if global_config.config.debug_rule_flag:
             print(f"\n[DEBUG] Executing: {cmd_str}", flush=True)
 
         try:
@@ -464,7 +465,7 @@ class OrchestratorRule(Rule):
                     result = selector.object() if single else selector.objects()
 
                 # In debug mode, print results after execution
-                if self.config.debug_rule_flag:
+                if global_config.config.debug_rule_flag:
                     if single:
                         print(f"[DEBUG] Result: {result.name() if result else 'None'}", flush=True)
                     else:
@@ -478,7 +479,7 @@ class OrchestratorRule(Rule):
 
         except Exception as e:
             # In debug mode, print exception with command context
-            if self.config.debug_rule_flag:
+            if global_config.config.debug_rule_flag:
                 print(f"[DEBUG] Command '{cmd_str}' failed with exception: {e}", flush=True)
                 print("=" * 60, flush=True)
 
@@ -557,3 +558,109 @@ class OrchestratorRule(Rule):
             error_msg = f"Failed to rsh into pod {namespace}/{pod}: {str(e)}"
             self.logger.error(error_msg)
             return 1, "", error_msg
+
+    def run_oc_command(self, command: str, args: list, timeout: int = 120, raise_on_error: bool = True) -> tuple:
+        """
+        Run oc command using openshift_client library.
+
+        Args:
+            command: oc command (e.g., "get", "adm")
+            args: List of command arguments (e.g., ["pods", "--all-namespaces"])
+            timeout: Timeout in seconds (default: 120)
+            raise_on_error: If True, raise UnExpectedSystemOutput on non-zero exit code (default: True)
+
+        Returns:
+            Tuple of (return_code, stdout, stderr)
+
+        Raises:
+            UnExpectedSystemOutput: If command fails and raise_on_error is True
+        """
+        cmd_str = f"oc {command} {' '.join(args)}"
+        self._add_cmd_to_log(cmd_str)
+
+        with oc.timeout(timeout):
+            result = oc.invoke(command, args, auto_raise=False)
+            rc = result.status()
+            out = result.out()
+            err = result.err()
+
+            if rc != 0 and raise_on_error:
+                raise UnExpectedSystemOutput(
+                    ip=self.get_host_ip(), cmd=cmd_str, output=out + err, message=f"Command exited with code {rc}"
+                )
+
+            return rc, out, err
+
+    def get_all_pods(self, all_namespaces: bool = True, namespace: str = None, timeout: int = 45) -> list:
+        """
+        Get all pods using oc get pods.
+
+        Args:
+            all_namespaces: Get pods from all namespaces (default: True)
+            namespace: Specific namespace to query (overrides all_namespaces if provided)
+            timeout: Timeout in seconds (default: 45)
+
+        Returns:
+            List of pod objects (from openshift_client)
+        """
+        if namespace:
+            cmd_str = f"oc get pods -n {namespace}"
+            self._add_cmd_to_log(cmd_str)
+            try:
+                with oc.timeout(timeout):
+                    with oc.project(namespace):
+                        pod_objects = oc.selector("pods").objects()
+                        return pod_objects
+            except Exception as e:
+                self.logger.error(f"Failed to get pods in namespace {namespace}: {e}")
+                return []
+        else:
+            cmd_str = "oc get pods" + (" --all-namespaces" if all_namespaces else "")
+            self._add_cmd_to_log(cmd_str)
+            try:
+                with oc.timeout(timeout):
+                    pod_objects = oc.selector("pods", all_namespaces=all_namespaces).objects()
+                    return pod_objects
+            except Exception as e:
+                self.logger.error(f"Failed to get pods: {e}")
+                return []
+
+    def get_all_nodes(self, timeout: int = 45) -> list:
+        """
+        Get all nodes using oc get nodes.
+
+        Args:
+            timeout: Timeout in seconds (default: 45)
+
+        Returns:
+            List of node objects (from openshift_client)
+        """
+        self._add_cmd_to_log("oc get nodes")
+
+        try:
+            with oc.timeout(timeout):
+                node_objects = oc.selector("nodes").objects()
+                return node_objects
+        except Exception as e:
+            self.logger.error(f"Failed to get nodes: {e}")
+            return []
+
+    def get_all_namespaces(self, timeout: int = 45) -> list:
+        """
+        Get all namespaces using oc get namespaces.
+
+        Args:
+            timeout: Timeout in seconds (default: 45)
+
+        Returns:
+            List of namespace objects (from openshift_client)
+        """
+        self._add_cmd_to_log("oc get namespaces")
+
+        try:
+            with oc.timeout(timeout):
+                namespace_objects = oc.selector("namespaces").objects()
+                return namespace_objects
+        except Exception as e:
+            self.logger.error(f"Failed to get namespaces: {e}")
+            return []

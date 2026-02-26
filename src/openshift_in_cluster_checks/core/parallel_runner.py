@@ -387,5 +387,7 @@ class ParallelRunner:
                 documentation_link=hosted_rule_instance.get_documentation_link(),
                 node_labels=hosted_rule_instance.get_node_labels(),
                 system_info=result.system_info,  # Add structured data
+                table_headers=result.table_headers,  # Add table headers
+                table_data=result.table_data,  # Add table data
                 extra=result.extra,  # Add custom fields
             )

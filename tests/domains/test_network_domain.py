@@ -7,7 +7,23 @@ from unittest.mock import Mock
 import pytest
 
 from openshift_in_cluster_checks.domains.network_domain import NetworkValidationDomain
+from openshift_in_cluster_checks.rules.network.node_connectivity_validations import (
+    AreAllNodesConnected,
+    VerifyBondedInterfacesUp,
+)
+from openshift_in_cluster_checks.rules.network.ovnk8s_validations import (
+    LogicalSwitchNodeValidator,
+    NodesHaveOvnkubeNodePod,
+)
 from openshift_in_cluster_checks.rules.network.ovs_validations import OvsInterfaceAndPortFound
+
+# from openshift_in_cluster_checks.rules.network.ovs_validations import Bond0DnsServersComparison
+from openshift_in_cluster_checks.rules.network.whereabouts_validations import (
+    WhereaboutsDuplicateIPAddresses,
+    WhereaboutsExistingAllocations,
+    WhereaboutsMissingAllocations,
+    WhereaboutsMissingPodrefs,
+)
 
 
 class TestNetworkRuleDomain:
@@ -24,8 +40,17 @@ class TestNetworkRuleDomain:
         rules = domain.get_rule_classes()
 
         assert isinstance(rules, list)
-        assert len(rules) > 0
+        assert len(rules) == 9
         assert OvsInterfaceAndPortFound in rules
+        # assert Bond0DnsServersComparison in rules  # Commented out to match insights-on-prem
+        assert AreAllNodesConnected in rules
+        assert VerifyBondedInterfacesUp in rules
+        assert NodesHaveOvnkubeNodePod in rules
+        assert LogicalSwitchNodeValidator in rules
+        assert WhereaboutsDuplicateIPAddresses in rules
+        assert WhereaboutsMissingPodrefs in rules
+        assert WhereaboutsMissingAllocations in rules
+        assert WhereaboutsExistingAllocations in rules
 
     def test_verify_runs_validators(self):
         """Test that verify() runs validators on nodes."""

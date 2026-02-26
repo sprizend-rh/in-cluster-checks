@@ -11,6 +11,7 @@ import threading
 from typing import Any
 
 from openshift_in_cluster_checks import global_config
+from openshift_in_cluster_checks.core.exceptions import UnExpectedSystemOutput
 from openshift_in_cluster_checks.utils.file_utils import FileUtils
 
 
@@ -66,19 +67,26 @@ class Operator:
         """
         Run command and return stdout if successful.
 
+        Calls self.run_cmd() which subclasses can override to change execution behavior.
+
         Args:
             cmd: Command to execute
             timeout: Timeout in seconds (default: 30)
-            message: Optional custom error message (unused, for HC compatibility)
+            message: Optional custom error message
 
         Returns:
-            stdout from command
+            stdout from command (stripped)
 
         Raises:
-            Exception: If command fails (non-zero exit code)
+            UnExpectedSystemOutput: If command fails (non-zero exit code)
         """
-        # Note: message parameter is accepted for HC compatibility but not used
-        return self._host_executor.get_output_from_run_cmd(cmd, timeout)
+        rc, out, err = self.run_cmd(cmd, timeout)
+
+        if rc != 0:
+            error_message = message if message else "Unexpected output (exit code: {})".format(rc)
+            raise UnExpectedSystemOutput(ip=self.get_host_ip(), cmd=cmd, output=out + err, message=error_message)
+
+        return out.strip()
 
     def run_cmd_return_is_successful(self, cmd: str, timeout: int = 30) -> bool:
         """

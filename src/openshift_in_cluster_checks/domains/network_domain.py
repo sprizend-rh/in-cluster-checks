@@ -8,9 +8,22 @@ Based on support/HealthChecks/flows/Network/network_flows_openshift.py
 from typing import List
 
 from openshift_in_cluster_checks.core.domain import RuleDomain
-from openshift_in_cluster_checks.rules.network.ovs_validations import (
-    Bond0DnsServersComparison,
-    OvsInterfaceAndPortFound,
+from openshift_in_cluster_checks.rules.network.node_connectivity_validations import (
+    AreAllNodesConnected,
+    VerifyBondedInterfacesUp,
+)
+from openshift_in_cluster_checks.rules.network.ovnk8s_validations import (
+    LogicalSwitchNodeValidator,
+    NodesHaveOvnkubeNodePod,
+)
+from openshift_in_cluster_checks.rules.network.ovs_validations import OvsInterfaceAndPortFound
+
+# from openshift_in_cluster_checks.rules.network.ovs_validations import Bond0DnsServersComparison
+from openshift_in_cluster_checks.rules.network.whereabouts_validations import (
+    WhereaboutsDuplicateIPAddresses,
+    WhereaboutsExistingAllocations,
+    WhereaboutsMissingAllocations,
+    WhereaboutsMissingPodrefs,
 )
 
 
@@ -18,7 +31,7 @@ class NetworkValidationDomain(RuleDomain):
     """
     Network rule domain for OpenShift.
 
-    Phase 1B-E2E: Starting with just OvsInterfaceAndPortFound for testing.
+    Validates network health including OVS, OVN-Kubernetes, Whereabouts, and node connectivity.
     """
 
     def domain_name(self) -> str:
@@ -34,5 +47,13 @@ class NetworkValidationDomain(RuleDomain):
         """
         return [
             OvsInterfaceAndPortFound,
-            Bond0DnsServersComparison,
+            # Bond0DnsServersComparison,
+            AreAllNodesConnected,
+            VerifyBondedInterfacesUp,
+            NodesHaveOvnkubeNodePod,
+            LogicalSwitchNodeValidator,
+            WhereaboutsDuplicateIPAddresses,
+            WhereaboutsMissingPodrefs,
+            WhereaboutsMissingAllocations,
+            WhereaboutsExistingAllocations,
         ]

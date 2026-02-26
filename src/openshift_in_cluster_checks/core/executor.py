@@ -281,6 +281,10 @@ class NodeExecutor:
         """
         Execute command and return stdout if successful.
 
+        NOTE: This is a simple wrapper for backward compatibility with tests.
+        In production, Operator.get_output_from_run_cmd() should be used instead
+        as it includes proper logging and debug support.
+
         Args:
             cmd: Command to execute
             timeout: Timeout in seconds (default: 30)

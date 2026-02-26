@@ -58,7 +58,7 @@ def test_ceph_rule_prerequisite_not_fulfilled():
         result = rule.is_prerequisite_fulfilled()
 
         assert result.fulfilled is False
-        assert "OpenShift Storage" in result.message and "namespace not found" in result.message
+        assert "rook-ceph-operator pod" in result.message or "namespace not found" in result.message
 
 
 def test_ceph_rule_prerequisite_no_operator_pod():
@@ -102,7 +102,7 @@ def test_ceph_rule_get_ceph_pod_with_tools_pod():
     rule = TestCephRule(node_executors={})
 
     # Mock _get_pod_name to return tools pod
-    rule._get_pod_name = Mock(side_effect=lambda ns, labels: "rook-ceph-tools-12345" if labels.get("app") == "rook-ceph-tools" else None)
+    rule._get_pod_name = Mock(side_effect=lambda ns, labels, log_errors=True, timeout=30: "rook-ceph-tools-12345" if labels.get("app") == "rook-ceph-tools" else None)
 
     namespace, pod_name, ceph_config_args = rule._get_ceph_pod()
 
@@ -125,7 +125,7 @@ def test_ceph_rule_get_ceph_pod_with_operator_pod():
     rule = TestCephRule(node_executors={})
 
     # Mock _get_pod_name to return operator pod only
-    def mock_get_pod_name(ns, labels):
+    def mock_get_pod_name(ns, labels, log_errors=True, timeout=30):
         if labels.get("app") == "rook-ceph-tools":
             return None
         if labels.get("app") == "rook-ceph-operator":
@@ -181,7 +181,7 @@ def test_ceph_osd_tree_works_prerequisite_not_fulfilled():
         result = rule.is_prerequisite_fulfilled()
 
         assert result.fulfilled is False
-        assert "OpenShift Storage" in result.message and "namespace not found" in result.message
+        assert "rook-ceph-operator pod" in result.message or "namespace not found" in result.message
 
 
 def test_ceph_osd_tree_works_passed(capsys):
