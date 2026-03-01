@@ -9,7 +9,7 @@ import json
 import pytest
 from unittest.mock import Mock
 
-from openshift_in_cluster_checks.rules.k8s.k8s_validations import (
+from in_cluster_checks.rules.k8s.k8s_validations import (
     AllPodsReadyAndRunning,
     NodesAreReady,
     NodesCpuAndMemoryStatus,
@@ -17,7 +17,7 @@ from openshift_in_cluster_checks.rules.k8s.k8s_validations import (
     ValidateAllDaemonsetsScheduled,
     ValidateNamespaceStatus,
 )
-from openshift_in_cluster_checks.utils.enums import Status
+from in_cluster_checks.utils.enums import Status
 
 
 def create_mock_pod(namespace, name, phase, ready_containers, total_containers):

@@ -8,7 +8,7 @@ WhereaboutsMissingAllocations, and WhereaboutsExistingAllocations rules.
 import pytest
 from unittest.mock import Mock
 
-from openshift_in_cluster_checks.rules.network.whereabouts_validations import (
+from in_cluster_checks.rules.network.whereabouts_validations import (
     WhereaboutsDuplicateIPAddresses,
     WhereaboutsExistingAllocations,
     WhereaboutsMissingAllocations,

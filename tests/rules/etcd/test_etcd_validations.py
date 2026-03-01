@@ -2,7 +2,7 @@
 
 import pytest
 
-from openshift_in_cluster_checks.rules.etcd.etcd_validations import (
+from in_cluster_checks.rules.etcd.etcd_validations import (
     EtcdAlarmCheck,
     EtcdBackendCommitPerformanceCheck,
     EtcdBasicCheck,

@@ -10,8 +10,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from openshift_in_cluster_checks.core.rule import OrchestratorRule
-from openshift_in_cluster_checks.core.executor import _add_bash_timeout
+from in_cluster_checks.core.rule import OrchestratorRule
+from in_cluster_checks.core.executor import _add_bash_timeout
 
 
 class CmdOutput:
@@ -259,7 +259,7 @@ class OperatorTestBase:
         Returns:
             Mocked collected data
         """
-        from openshift_in_cluster_checks.core.operations import DataCollector
+        from in_cluster_checks.core.operations import DataCollector
 
         assert issubclass(collector_class, DataCollector), (
             f"{collector_class} is not a DataCollector subclass"

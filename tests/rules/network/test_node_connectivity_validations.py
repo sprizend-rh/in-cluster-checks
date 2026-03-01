@@ -9,7 +9,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from openshift_in_cluster_checks.rules.network.node_connectivity_validations import AreAllNodesConnected, VerifyBondedInterfacesUp
+from in_cluster_checks.rules.network.node_connectivity_validations import AreAllNodesConnected, VerifyBondedInterfacesUp
 from tests.pytest_tools.test_operator_base import CmdOutput
 from tests.pytest_tools.test_rule_base import RuleScenarioParams, RuleTestBase
 

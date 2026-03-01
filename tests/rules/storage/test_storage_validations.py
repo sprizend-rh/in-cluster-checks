@@ -4,9 +4,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from openshift_in_cluster_checks.core.rule import PrerequisiteResult, RuleResult
-from openshift_in_cluster_checks.rules.storage.storage_validations import CephOsdTreeWorks, CephRule
-from openshift_in_cluster_checks.utils.enums import Objectives
+from in_cluster_checks.core.rule import PrerequisiteResult, RuleResult
+from in_cluster_checks.rules.storage.storage_validations import CephOsdTreeWorks, CephRule
+from in_cluster_checks.utils.enums import Objectives
 
 
 # CephRule Base Class Tests

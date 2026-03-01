@@ -4,10 +4,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from openshift_in_cluster_checks import global_config
-from openshift_in_cluster_checks.core.exceptions import UnExpectedSystemOutput
-from openshift_in_cluster_checks.core.operations import FlowsOperator, Operator
-from openshift_in_cluster_checks.utils.enums import Objectives
+from in_cluster_checks import global_config
+from in_cluster_checks.core.exceptions import UnExpectedSystemOutput
+from in_cluster_checks.core.operations import FlowsOperator, Operator
+from in_cluster_checks.utils.enums import Objectives
 
 
 class TestOperator:
@@ -261,7 +261,7 @@ class TestFlowsOperator:
 
     def test_get_the_nth_field_static(self):
         """Test _get_the_nth_field static method."""
-        from openshift_in_cluster_checks.core.operations import Operator
+        from in_cluster_checks.core.operations import Operator
 
         # Test with default whitespace separator
         result = Operator._get_the_nth_field("one two three", 2)
@@ -273,7 +273,7 @@ class TestFlowsOperator:
 
     def test_get_the_nth_field_out_of_bounds(self):
         """Test _get_the_nth_field raises IndexError for invalid field."""
-        from openshift_in_cluster_checks.core.operations import Operator
+        from in_cluster_checks.core.operations import Operator
 
         with pytest.raises(IndexError, match="Field 5 not found"):
             Operator._get_the_nth_field("one two three", 5)

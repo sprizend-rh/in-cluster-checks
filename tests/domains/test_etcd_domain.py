@@ -1,7 +1,7 @@
 """Tests for Etcd validation domain."""
 
-from openshift_in_cluster_checks.domains.etcd_domain import EtcdValidationDomain
-from openshift_in_cluster_checks.rules.etcd.etcd_validations import (
+from in_cluster_checks.domains.etcd_domain import EtcdValidationDomain
+from in_cluster_checks.rules.etcd.etcd_validations import (
     EtcdAlarmCheck,
     EtcdBackendCommitPerformanceCheck,
     EtcdBasicCheck,

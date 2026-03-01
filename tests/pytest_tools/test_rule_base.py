@@ -8,8 +8,8 @@ import re
 import pytest
 from contextlib import ExitStack
 
-from openshift_in_cluster_checks.core.exceptions import UnExpectedSystemOutput
-from openshift_in_cluster_checks.utils.enums import Status
+from in_cluster_checks.core.exceptions import UnExpectedSystemOutput
+from in_cluster_checks.utils.enums import Status
 from tests.pytest_tools.test_operator_base import OperatorTestBase, ScenarioParams
 
 

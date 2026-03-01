@@ -5,8 +5,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from openshift_in_cluster_checks.interfaces.config import InClusterCheckConfig
-from openshift_in_cluster_checks.runner import InClusterCheckRunner
+from in_cluster_checks.interfaces.config import InClusterCheckConfig
+from in_cluster_checks.runner import InClusterCheckRunner
 
 
 class TestInClusterCheckRunner:
@@ -36,26 +36,25 @@ class TestInClusterCheckRunner:
         assert runner.config.parallel_execution is False
         assert runner.config.max_workers == 5
 
-    @patch('openshift_in_cluster_checks.runner.ParallelRunner')
-    @patch('openshift_in_cluster_checks.runner.ExecutorFactory')
-    def test_run_success(self, mock_executor_factory, mock_parallel_runner):
+    @patch('in_cluster_checks.runner.NodeExecutorFactory')
+    def test_run_success(self, mock_executor_factory):
         """Test successful run."""
         # Mock executor factory
         mock_factory_instance = Mock()
+        mock_factory_instance.build_host_executors.return_value = []
+        mock_factory_instance.connect_all.return_value = None
+        mock_factory_instance.disconnect_all.return_value = None
         mock_executor_factory.return_value = mock_factory_instance
-
-        # Mock parallel runner
-        mock_runner_instance = Mock()
-        mock_parallel_runner.return_value = mock_runner_instance
-        mock_runner_instance.run.return_value = {"results": "data"}
 
         runner = InClusterCheckRunner()
         output_path = Path("/tmp/test-results.json")
 
-        with patch('openshift_in_cluster_checks.runner.Path.write_text') as mock_write:
-            with patch('openshift_in_cluster_checks.runner.Path.absolute') as mock_absolute:
-                mock_absolute.return_value = output_path
-                result = runner.run(output_path=output_path)
+        # Mock the discover_domains to return an empty dict to avoid actual domain loading
+        with patch.object(runner, 'discover_domains', return_value={}):
+            # Mock StructedPrinter methods
+            with patch('in_cluster_checks.runner.StructedPrinter.format_results', return_value=[]):
+                with patch('in_cluster_checks.runner.StructedPrinter.print_to_json') as mock_print:
+                    result = runner.run(output_path=output_path)
 
-                assert result == str(output_path)
-                mock_write.assert_called_once()
+                    assert result == str(output_path)
+                    mock_print.assert_called_once_with([], str(output_path))

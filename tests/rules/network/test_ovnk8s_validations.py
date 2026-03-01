@@ -8,7 +8,7 @@ Ported from: support/HealthChecks/tests/pytest/flows/network/test_ovnk8s_sanity_
 import pytest
 from unittest.mock import Mock
 
-from openshift_in_cluster_checks.rules.network.ovnk8s_validations import (
+from in_cluster_checks.rules.network.ovnk8s_validations import (
     LogicalSwitchNodeValidator,
     NodesHaveOvnkubeNodePod,
 )

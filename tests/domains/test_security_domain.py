@@ -1,7 +1,7 @@
 """Tests for Security validation domain."""
 
-from openshift_in_cluster_checks.domains.security_domain import SecurityValidationDomain
-from openshift_in_cluster_checks.rules.security.certificate_expiry import (
+from in_cluster_checks.domains.security_domain import SecurityValidationDomain
+from in_cluster_checks.rules.security.certificate_expiry import (
     NodeCertificateExpiry,
 )
 

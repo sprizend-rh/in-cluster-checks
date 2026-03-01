@@ -1,7 +1,7 @@
 """Tests for K8s validation domain."""
 
-from openshift_in_cluster_checks.domains.k8s_domain import K8sValidationDomain
-from openshift_in_cluster_checks.rules.k8s.k8s_validations import (
+from in_cluster_checks.domains.k8s_domain import K8sValidationDomain
+from in_cluster_checks.rules.k8s.k8s_validations import (
     AllPodsReadyAndRunning,
     NodesAreReady,
     NodesCpuAndMemoryStatus,

@@ -6,19 +6,19 @@ from unittest.mock import Mock
 
 import pytest
 
-from openshift_in_cluster_checks.domains.network_domain import NetworkValidationDomain
-from openshift_in_cluster_checks.rules.network.node_connectivity_validations import (
+from in_cluster_checks.domains.network_domain import NetworkValidationDomain
+from in_cluster_checks.rules.network.node_connectivity_validations import (
     AreAllNodesConnected,
     VerifyBondedInterfacesUp,
 )
-from openshift_in_cluster_checks.rules.network.ovnk8s_validations import (
+from in_cluster_checks.rules.network.ovnk8s_validations import (
     LogicalSwitchNodeValidator,
     NodesHaveOvnkubeNodePod,
 )
-from openshift_in_cluster_checks.rules.network.ovs_validations import OvsInterfaceAndPortFound
+from in_cluster_checks.rules.network.ovs_validations import OvsInterfaceAndPortFound
 
-# from openshift_in_cluster_checks.rules.network.ovs_validations import Bond0DnsServersComparison
-from openshift_in_cluster_checks.rules.network.whereabouts_validations import (
+# from in_cluster_checks.rules.network.ovs_validations import Bond0DnsServersComparison
+from in_cluster_checks.rules.network.whereabouts_validations import (
     WhereaboutsDuplicateIPAddresses,
     WhereaboutsExistingAllocations,
     WhereaboutsMissingAllocations,
@@ -74,7 +74,7 @@ ovs-port-phys  uuid2  ovs-port  bond0"""
 
     def test_domain_inherits_from_validation_domain(self):
         """Test that NetworkValidationDomain inherits from RuleDomain."""
-        from openshift_in_cluster_checks.core.domain import RuleDomain
+        from in_cluster_checks.core.domain import RuleDomain
 
         domain = NetworkValidationDomain()
         assert isinstance(domain, RuleDomain)
