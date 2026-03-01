@@ -10,6 +10,7 @@ import json
 from in_cluster_checks.core.rule import OrchestratorRule
 from in_cluster_checks.core.rule_result import PrerequisiteResult, RuleResult
 from in_cluster_checks.utils.enums import Objectives
+from in_cluster_checks.utils.parsing_utils import parse_int, parse_json
 
 
 class CephRule(OrchestratorRule):
@@ -125,11 +126,7 @@ class CephOsdTreeWorks(CephRule):
         if return_code == 0:
             return RuleResult.passed()
 
-        error_msg = "ceph osd tree is not working."
-        if stderr:
-            error_msg += f"\nError: {stderr}"
-        if stdout:
-            error_msg += f"\nOutput: {stdout}"
+        error_msg = self.build_cmd_error_message("ceph osd tree is not working.", stdout, stderr)
         return RuleResult.failed(error_msg)
 
 
@@ -147,20 +144,14 @@ class IsCephHealthOk(CephRule):
     title = "Check if ceph health is ok"
 
     def run_rule(self) -> RuleResult:
-        return_code, stdout, stderr = self._run_ceph_cmd("ceph health -f json")
+        cmd = "ceph health -f json"
+        return_code, stdout, stderr = self._run_ceph_cmd(cmd)
 
         if return_code != 0:
-            error_msg = "Failed to get ceph health status."
-            if stderr:
-                error_msg += f"\nError: {stderr}"
-            if stdout:
-                error_msg += f"\nOutput: {stdout}"
+            error_msg = self.build_cmd_error_message("Failed to get ceph health status.", stdout, stderr)
             return RuleResult.failed(error_msg)
 
-        try:
-            health_dict = json.loads(stdout)
-        except json.JSONDecodeError as e:
-            return RuleResult.failed(f"Failed to parse ceph health JSON output: {e}\nOutput: {stdout}")
+        health_dict = parse_json(stdout, cmd, self.get_host_ip())
 
         # Get status (handles both old and new ceph versions)
         status = health_dict.get("status") or health_dict.get("overall_status")
@@ -205,23 +196,17 @@ class IsCephOSDsNearFull(CephRule):
     THRESHOLD_CRITICAL = 90
 
     def run_rule(self) -> RuleResult:
-        return_code, stdout, stderr = self._run_ceph_cmd("ceph osd df -f json")
+        cmd = "ceph osd df -f json"
+        return_code, stdout, stderr = self._run_ceph_cmd(cmd)
 
         if return_code != 0:
-            error_msg = "Failed to get ceph osd df status."
-            if stderr:
-                error_msg += f"\nError: {stderr}"
-            if stdout:
-                error_msg += f"\nOutput: {stdout}"
+            error_msg = self.build_cmd_error_message("Failed to get ceph osd df status.", stdout, stderr)
             return RuleResult.failed(error_msg)
 
         if not stdout:
             return RuleResult.failed("Empty results from ceph osd df command")
 
-        try:
-            osd_df = json.loads(stdout)
-        except json.JSONDecodeError as e:
-            return RuleResult.failed(f"Failed to parse ceph osd df JSON output: {e}\nOutput: {stdout}")
+        osd_df = parse_json(stdout, cmd, self.get_host_ip())
 
         nodes = osd_df.get("nodes")
         if not nodes:
@@ -290,23 +275,17 @@ class IsOSDsUp(CephRule):
     title = "Check if all osds are up"
 
     def run_rule(self) -> RuleResult:
-        return_code, stdout, stderr = self._run_ceph_cmd("ceph osd tree -f json")
+        cmd = "ceph osd tree -f json"
+        return_code, stdout, stderr = self._run_ceph_cmd(cmd)
 
         if return_code != 0:
-            error_msg = "Failed to get ceph osd tree status."
-            if stderr:
-                error_msg += f"\nError: {stderr}"
-            if stdout:
-                error_msg += f"\nOutput: {stdout}"
+            error_msg = self.build_cmd_error_message("Failed to get ceph osd tree status.", stdout, stderr)
             return RuleResult.failed(error_msg)
 
         if not stdout:
             return RuleResult.failed("Empty results from ceph osd tree command")
 
-        try:
-            osd_tree = json.loads(stdout)
-        except json.JSONDecodeError as e:
-            return RuleResult.failed(f"Failed to parse ceph osd tree JSON output: {e}\nOutput: {stdout}")
+        osd_tree = parse_json(stdout, cmd, self.get_host_ip())
 
         nodes = osd_tree.get("nodes")
         if not nodes:
@@ -347,23 +326,17 @@ class IsOSDsWeightOK(CephRule):
     ACCEPTABLE_RANGE = 0.05  # 5% tolerance
 
     def run_rule(self) -> RuleResult:
-        return_code, stdout, stderr = self._run_ceph_cmd("ceph osd df -f json")
+        cmd = "ceph osd df -f json"
+        return_code, stdout, stderr = self._run_ceph_cmd(cmd)
 
         if return_code != 0:
-            error_msg = "Failed to get ceph osd df status."
-            if stderr:
-                error_msg += f"\nError: {stderr}"
-            if stdout:
-                error_msg += f"\nOutput: {stdout}"
+            error_msg = self.build_cmd_error_message("Failed to get ceph osd df status.", stdout, stderr)
             return RuleResult.failed(error_msg)
 
         if not stdout:
             return RuleResult.failed("Empty results from ceph osd df command")
 
-        try:
-            osd_df = json.loads(stdout)
-        except json.JSONDecodeError as e:
-            return RuleResult.failed(f"Failed to parse ceph osd df JSON output: {e}\nOutput: {stdout}")
+        osd_df = parse_json(stdout, cmd, self.get_host_ip())
 
         nodes = osd_df.get("nodes")
         if not nodes:
@@ -373,7 +346,7 @@ class IsOSDsWeightOK(CephRule):
         problematic_osds = []
         for node in nodes:
             osd_id = str(node.get("id", "unknown"))
-            osd_size_kb = int(node.get("kb", 0))
+            osd_size_kb = parse_int(node.get("kb", 0), cmd, self.get_host_ip())
             current_weight = float(node.get("crush_weight", 0))
 
             # Calculate expected weight (KB to TB conversion)
@@ -425,3 +398,88 @@ class IsOSDsWeightOK(CephRule):
     def _convert_kb_to_tb(self, kb_value: int) -> float:
         """Convert KB to TB."""
         return float(kb_value / 1024 / 1024 / 1024)
+
+
+class OrphanCsiVolumes(CephRule):
+    """
+    Check for orphaned Ceph CSI volumes.
+
+    This validation identifies CSI subvolumes that exist in the Ceph storage backend
+    but have no corresponding PersistentVolume in OpenShift. These orphaned volumes
+    consume storage space but are not accessible to the cluster and may indicate
+    incomplete cleanup after PV deletion.
+    """
+
+    objective_hosts = [Objectives.ORCHESTRATOR]
+    unique_name = "orphan_csi_volumes"
+    title = "Check for orphaned Ceph CSI volumes"
+
+    def run_rule(self) -> RuleResult:
+        pv_subvolumes = self._get_pv_subvolume_names()
+
+        csi_subvolumes_result = self._get_ceph_subvolume_list()
+        if isinstance(csi_subvolumes_result, RuleResult):
+            return csi_subvolumes_result
+        # Find orphans - volumes in Ceph but not in PVs
+        orphans = [vol for vol in csi_subvolumes_result if vol not in pv_subvolumes]
+
+        if not orphans:
+            return RuleResult.passed()
+
+        error_msg = (
+            f"Found {len(orphans)} orphaned CSI volume(s) in Ceph storage.\n"
+            "These volumes exist in the storage backend but have no corresponding PersistentVolume.\n"
+            "They may be consuming storage space and could be candidates for cleanup.\n\n"
+            f"Total PVs with CSI volumes: {len(pv_subvolumes)}\n"
+            f"Total CSI subvolumes in Ceph: {len(csi_subvolumes_result)}\n"
+            f"Orphaned volumes: {len(orphans)}\n\n"
+            "Orphaned CSI volume names:\n"
+        )
+
+        for orphan in sorted(orphans):
+            error_msg += f"  - {orphan}\n"
+
+        return RuleResult.failed(error_msg.rstrip())
+
+    def _get_pv_subvolume_names(self):
+        """
+        Get all CSI subvolume names from PersistentVolumes.
+
+        Returns:
+            Set of subvolume names, or RuleResult if operation failed
+        """
+        jsonpath = "{.items[*].spec.csi.volumeAttributes.subvolumeName}"
+        rc, stdout, stderr = self.run_oc_command("get", ["pv", "-o", f"jsonpath={jsonpath}"])
+
+        # Parse space-separated subvolume names, filter out empty values
+        return set(name for name in stdout.split() if name)
+
+    def _get_ceph_subvolume_list(self):
+        """
+        Get all CSI subvolumes from Ceph filesystem.
+
+        Returns:
+            List of CSI subvolume names or RuleResult if operation failed
+        """
+        cmd = "ceph fs subvolume ls ocs-storagecluster-cephfilesystem csi -f json"
+        return_code, stdout, stderr = self._run_ceph_cmd(cmd)
+
+        if return_code != 0:
+            error_msg = self.build_cmd_error_message("Failed to list CSI subvolumes from Ceph.", stdout, stderr)
+            return RuleResult.failed(error_msg)
+
+        if not stdout:
+            return RuleResult.failed("Empty results from ceph fs subvolume ls command")
+
+        subvolumes_data = parse_json(stdout, cmd, self.get_host_ip())
+
+        # Extract subvolume names from the array
+        # Each entry is like: {"name": "csi-vol-abc123"}
+        subvolume_names = []
+        for entry in subvolumes_data:
+            if isinstance(entry, dict):
+                name = entry.get("name")
+                if name:
+                    subvolume_names.append(name)
+
+        return subvolume_names

@@ -14,6 +14,7 @@ from in_cluster_checks.rules.storage.storage_validations import (
     IsCephOSDsNearFull,
     IsOSDsUp,
     IsOSDsWeightOK,
+    OrphanCsiVolumes,
 )
 
 
@@ -41,4 +42,5 @@ class StorageValidationDomain(RuleDomain):
             IsCephOSDsNearFull,
             IsOSDsUp,
             IsOSDsWeightOK,
+            OrphanCsiVolumes,
         ]
