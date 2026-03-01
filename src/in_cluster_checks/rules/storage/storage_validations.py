@@ -6,6 +6,8 @@ Adapted for OpenShift/OpenShift use case.
 """
 
 import json
+import re
+from datetime import datetime, timezone
 
 from in_cluster_checks.core.rule import OrchestratorRule
 from in_cluster_checks.core.rule_result import PrerequisiteResult, RuleResult
@@ -24,6 +26,8 @@ class CephRule(OrchestratorRule):
     Ported from CephValidation base class in healthcheck-backup.
     """
 
+    NAMESPACE = "openshift-storage"
+
     def _get_ceph_pod(self) -> tuple:
         """
         Get the appropriate ceph pod for executing commands.
@@ -37,17 +41,15 @@ class CephRule(OrchestratorRule):
             - pod_name: Name of the pod
             - ceph_config_args: Additional ceph arguments (e.g., "-c /path/to/config" or "")
         """
-        namespace = "openshift-storage"
-
         # First, try to find the rook-ceph-tools pod (preferred)
-        pod_name = self._get_pod_name(namespace, {"app": "rook-ceph-tools"}, log_errors=False)
+        pod_name = self._get_pod_name(self.NAMESPACE, {"app": "rook-ceph-tools"}, log_errors=False)
         if pod_name:
-            return namespace, pod_name, ""
+            return self.NAMESPACE, pod_name, ""
 
         # Fallback: use ceph operator pod (guaranteed to exist by prerequisite check)
-        pod_name = self._get_pod_name(namespace, {"app": "rook-ceph-operator"})
-        ceph_conf = "/var/lib/rook/openshift-storage/openshift-storage.config"
-        return namespace, pod_name, f"-c {ceph_conf}"
+        pod_name = self._get_pod_name(self.NAMESPACE, {"app": "rook-ceph-operator"})
+        ceph_conf = f"/var/lib/rook/{self.NAMESPACE}/{self.NAMESPACE}.config"
+        return self.NAMESPACE, pod_name, f"-c {ceph_conf}"
 
     def _run_ceph_cmd(self, cmd: str, timeout: int = 30) -> tuple[int, str, str]:
         """
@@ -97,8 +99,7 @@ class CephRule(OrchestratorRule):
             )
 
         # Check for operator pod (required - tools pod is optional)
-        namespace = "openshift-storage"
-        operator_pod = self._get_pod_name(namespace, {"app": "rook-ceph-operator"})
+        operator_pod = self._get_pod_name(self.NAMESPACE, {"app": "rook-ceph-operator"})
 
         if not operator_pod:
             return PrerequisiteResult.not_met(
@@ -483,3 +484,196 @@ class OrphanCsiVolumes(CephRule):
                     subvolume_names.append(name)
 
         return subvolume_names
+
+
+class OsdJournalError(CephRule):
+    """
+    Check if OSDs had journal errors in the last hour.
+
+    This validation checks for OSD pods that have failed or restarted in the last hour,
+    indicating potential journal errors or other issues. It examines pod status, restart
+    counts, and logs to identify problematic OSDs.
+
+    Ported from HealthChecks OsdJournalError rule, adapted for OpenShift/Rook-Ceph.
+    """
+
+    objective_hosts = [Objectives.ORCHESTRATOR]
+    unique_name = "osd_journal_errors_last_hour"
+    title = "Check if OSDs had journal errors in the last hour"
+
+    def run_rule(self) -> RuleResult:
+        osd_pods = self._get_osd_pods()
+        if not osd_pods:
+            return RuleResult.failed(f"No OSD pods found in {self.NAMESPACE} namespace")
+
+        problematic_osds = []
+        for pod in osd_pods:
+            osd_info = self._check_pod_health(pod)
+            if osd_info:
+                problematic_osds.append(osd_info)
+
+        if not problematic_osds:
+            return RuleResult.passed()
+
+        error_msg = self._build_error_message(problematic_osds)
+        return RuleResult.failed(error_msg)
+
+    def _get_osd_pods(self) -> list:
+        """Get all OSD pods from the cluster."""
+        return self._get_pods(namespace=self.NAMESPACE, labels={"app": "rook-ceph-osd"})
+
+    def _check_pod_health(self, pod) -> dict | None:
+        """
+        Check if a pod has health issues and collect diagnostics.
+
+        Args:
+            pod: Pod object from openshift_client
+
+        Returns:
+            Dictionary with pod info if problematic, None otherwise
+        """
+        pod_name = pod.name()
+        pod_status = pod.model.status.phase
+        container_statuses = pod.model.status.containerStatuses or []
+
+        has_recent_restarts, container_errors = self._get_recent_restarts_and_errors(container_statuses)
+
+        if not self._is_osd_problematic(pod_status, has_recent_restarts, container_errors):
+            return None
+
+        osd_id = self._extract_osd_id(pod)
+
+        # Get pod logs using oc logs command
+        return_code, log_output, stderr = self.run_oc_command(
+            "logs",
+            ["-n", self.NAMESPACE, pod_name, "--since=1h", "--tail=15"],
+            timeout=30,
+            raise_on_error=False,
+        )
+
+        if return_code != 0:
+            self.logger.warning(f"Failed to get logs for pod {self.NAMESPACE}/{pod_name}: {stderr}")
+            log_output = ""
+
+        return {
+            "pod_name": pod_name,
+            "osd_id": osd_id,
+            "status": pod_status,
+            "container_errors": container_errors,
+            "logs": log_output,
+        }
+
+    def _get_recent_restarts_and_errors(self, container_statuses: list) -> tuple[bool, list]:
+        """
+        Check for recent restarts and error states in container statuses.
+
+        Checks if any containers have restarted in the last hour by examining the
+        lastState.finishedAt timestamp.
+
+        Args:
+            container_statuses: List of container status objects
+
+        Returns:
+            Tuple of (has_recent_restarts, list_of_container_errors)
+        """
+        has_recent_restarts = False
+        container_errors = []
+        now = datetime.now(timezone.utc)
+
+        for container in container_statuses:
+            # Check if container restarted in the last hour
+            if container.lastState and container.lastState.terminated:
+                finished_at = container.lastState.terminated.finishedAt
+                if finished_at:
+                    # Parse the timestamp (format: "2025-02-26T10:15:30Z")
+                    try:
+                        finished_time = datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
+                        time_diff = (now - finished_time).total_seconds()
+                        if time_diff <= 3600:  # 1 hour = 3600 seconds
+                            has_recent_restarts = True
+                    except (ValueError, AttributeError):
+                        # If we can't parse the timestamp, skip this check
+                        pass
+
+            # Check if container is in error state
+            if container.state.waiting and container.state.waiting.reason in [
+                "CrashLoopBackOff",
+                "Error",
+                "ImagePullBackOff",
+            ]:
+                container_errors.append(
+                    f"{container.name}: {container.state.waiting.reason} - {container.state.waiting.message or ''}"
+                )
+            elif container.state.terminated and container.state.terminated.reason in ["Error", "OOMKilled"]:
+                container_errors.append(
+                    f"{container.name}: {container.state.terminated.reason} - "
+                    f"{container.state.terminated.message or ''}"
+                )
+
+        return has_recent_restarts, container_errors
+
+    def _is_osd_problematic(self, pod_status: str, has_recent_restarts: bool, container_errors: list) -> bool:
+        """
+        Determine if OSD pod is problematic.
+
+        An OSD is considered problematic if:
+        1. Pod is not in Running state, OR
+        2. Pod has restarted in the last hour, OR
+        3. Container has errors
+
+        Args:
+            pod_status: Pod phase (Running, Pending, Failed, etc.)
+            has_recent_restarts: True if any container restarted in the last hour
+            container_errors: List of container error strings
+
+        Returns:
+            True if OSD is problematic, False otherwise
+        """
+        return pod_status != "Running" or has_recent_restarts or bool(container_errors)
+
+    def _extract_osd_id(self, pod) -> str:
+        """
+        Extract OSD ID from pod labels or name.
+
+        Args:
+            pod: Pod object from openshift_client
+
+        Returns:
+            OSD ID as string, or "unknown" if not found
+        """
+        osd_id = pod.model.metadata.labels.get("ceph-osd-id", "unknown")
+        if osd_id == "unknown":
+            # Try to extract from pod name (format: rook-ceph-osd-<ID>-<hash>-<suffix>)
+            # Example: rook-ceph-osd-0-5fc8f487b4-2w5qb
+            match = re.search(r"rook-ceph-osd-(\d+)-[a-z0-9]+-[a-z0-9]+", pod.name())
+            if match:
+                osd_id = match.group(1)
+        return osd_id
+
+    def _build_error_message(self, problematic_osds: list) -> str:
+        """
+        Build formatted error message from problematic OSDs.
+
+        Args:
+            problematic_osds: List of OSD info dictionaries
+
+        Returns:
+            Formatted error message string
+        """
+        error_parts = []
+        for osd in problematic_osds:
+            part = f"Pod Name: {osd['pod_name']}\n"
+            part += f"OSD ID: {osd['osd_id']}\n"
+            part += f"Status: {osd['status']}\n"
+
+            if osd["container_errors"]:
+                part += "Container Errors:\n"
+                for error in osd["container_errors"]:
+                    part += f"  - {error}\n"
+
+            if osd["logs"]:
+                part += f"Recent Logs (last 15 lines or 1 hour):\n{osd['logs']}\n"
+
+            error_parts.append(part)
+
+        return "\n\n".join(error_parts)

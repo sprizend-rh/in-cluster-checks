@@ -15,6 +15,7 @@ from in_cluster_checks.rules.storage.storage_validations import (
     IsOSDsUp,
     IsOSDsWeightOK,
     OrphanCsiVolumes,
+    OsdJournalError,
 )
 
 
@@ -43,4 +44,5 @@ class StorageValidationDomain(RuleDomain):
             IsOSDsUp,
             IsOSDsWeightOK,
             OrphanCsiVolumes,
+            OsdJournalError,
         ]
