@@ -26,17 +26,12 @@ python examples/basic_usage.py
 Shows how to customize the runner configuration:
 
 ```python
-from in_cluster_checks.interfaces.config import InClusterCheckConfig
 from in_cluster_checks.runner import InClusterCheckRunner
 
-config = InClusterCheckConfig(
-    parallel_execution=True,
-    max_workers=10,
-    command_timeout=120,
+runner = InClusterCheckRunner(
+    max_workers=75,
     filter_secrets=True,
 )
-
-runner = InClusterCheckRunner(config=config)
 ```
 
 **Run it:**

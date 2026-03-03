@@ -187,7 +187,36 @@ src/in_cluster_checks/rules/your_domain/
 
 The `InClusterCheckRunner` automatically discovers all domains in the `domains` package - no manual registration needed!
 
-## Testing
+## Testing Your Changes
+
+### Manual Testing
+
+Test your changes manually using the CLI or programmatically:
+
+```bash
+# Using CLI with debug mode to test a specific rule
+openshift-checks --debug-rule your_rule_name
+
+# Or test programmatically
+python -c "
+from in_cluster_checks.runner import InClusterCheckRunner
+from pathlib import Path
+
+runner = InClusterCheckRunner(
+    debug_rule_flag=True,
+    debug_rule_name='your_rule_name',
+)
+runner.run(output_path=Path('./test-results.json'))
+"
+```
+
+**Debug Mode Features:**
+- Only runs the specified rule
+- Shows detailed command execution output
+- Disables secret filtering for easier debugging
+- Disables JSON output (shows results in console)
+
+### Automated Testing
 
 ### Run All Tests
 

@@ -15,7 +15,6 @@ from in_cluster_checks import global_config
 from in_cluster_checks.core.domain import RuleDomain
 from in_cluster_checks.core.executor_factory import NodeExecutorFactory
 from in_cluster_checks.core.printer import StructedPrinter
-from in_cluster_checks.interfaces.config import InClusterCheckConfig
 from in_cluster_checks.utils.enums import Status
 
 
@@ -31,22 +30,36 @@ class InClusterCheckRunner:
     - Summary statistics
     """
 
-    def __init__(self, config: InClusterCheckConfig | None = None, domain_package: str = "in_cluster_checks.domains"):
+    def __init__(
+        self,
+        debug_rule_flag: bool = False,
+        debug_rule_name: str = "",
+        filter_secrets: bool = True,
+        max_workers: int = 50,
+        domain_package: str = "in_cluster_checks.domains",
+    ):
         """
         Initialize runner.
 
         Args:
-            config: Configuration for in-cluster checks (optional, uses default if not provided)
+            debug_rule_flag: Enable debug mode for detailed output
+            debug_rule_name: Name of specific rule to run in debug mode
+            filter_secrets: Whether to filter sensitive data from output
+            max_workers: Maximum number of concurrent workers for parallel execution
             domain_package: Python package path for domain discovery
         """
         self.logger = logging.getLogger(__name__)
-        self.config = config or InClusterCheckConfig()
         self.domain_package = domain_package
         self.factory = None
         self.node_executors = None
 
         # Set global config so other components can access it
-        global_config.set_config(self.config)
+        global_config.set_config(
+            debug_rule_flag_val=debug_rule_flag,
+            debug_rule_name_val=debug_rule_name,
+            filter_secrets_val=filter_secrets,
+            max_workers_val=max_workers,
+        )
 
     def discover_domains(self) -> Dict[str, type]:
         """
@@ -176,9 +189,12 @@ class InClusterCheckRunner:
             # 6. Aggregate and format results
             reports = StructedPrinter.format_results(results, rule_component_map)
 
-            # 7. Generate JSON output
-            StructedPrinter.print_to_json(reports, str(output_path))
-            self.logger.info(f"In-cluster check results saved to: {output_path}")
+            # 7. Generate JSON output (skip in debug mode)
+            if not global_config.debug_rule_flag:
+                StructedPrinter.print_to_json(reports, str(output_path))
+                self.logger.info(f"In-cluster check results saved to: {output_path}")
+            else:
+                self.logger.info("Debug mode: JSON output disabled")
 
             # 8. Log summary
             self.log_summary(reports)

@@ -1,13 +1,21 @@
-"""Global configuration instance for in-cluster checks."""
+"""Global configuration for in-cluster checks."""
 
-from in_cluster_checks.interfaces.config import InClusterCheckConfig
+# Global configuration values
+debug_rule_flag: bool = False
+debug_rule_name: str = ""
+filter_secrets: bool = True
+max_workers: int = 50
 
-# Global config instance
-# This is set by the runner and accessed by other components
-config = InClusterCheckConfig()
 
-
-def set_config(new_config: InClusterCheckConfig):
-    """Update global config instance."""
-    global config
-    config = new_config
+def set_config(
+    debug_rule_flag_val: bool = False,
+    debug_rule_name_val: str = "",
+    filter_secrets_val: bool = True,
+    max_workers_val: int = 50,
+):
+    """Update global configuration values."""
+    global debug_rule_flag, debug_rule_name, filter_secrets, max_workers
+    debug_rule_flag = debug_rule_flag_val
+    debug_rule_name = debug_rule_name_val
+    filter_secrets = filter_secrets_val
+    max_workers = max_workers_val

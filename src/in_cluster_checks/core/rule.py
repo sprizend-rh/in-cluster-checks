@@ -443,7 +443,7 @@ class OrchestratorRule(Rule):
         self._add_cmd_to_log(cmd_str)
 
         # In debug mode, print command BEFORE execution
-        if global_config.config.debug_rule_flag:
+        if global_config.debug_rule_flag:
             print(f"\n[DEBUG] Executing: {cmd_str}", flush=True)
 
         try:
@@ -465,7 +465,7 @@ class OrchestratorRule(Rule):
                     result = selector.object() if single else selector.objects()
 
                 # In debug mode, print results after execution
-                if global_config.config.debug_rule_flag:
+                if global_config.debug_rule_flag:
                     if single:
                         print(f"[DEBUG] Result: {result.name() if result else 'None'}", flush=True)
                     else:
@@ -479,7 +479,7 @@ class OrchestratorRule(Rule):
 
         except Exception as e:
             # In debug mode, print exception with command context
-            if global_config.config.debug_rule_flag:
+            if global_config.debug_rule_flag:
                 print(f"[DEBUG] Command '{cmd_str}' failed with exception: {e}", flush=True)
                 print("=" * 60, flush=True)
 

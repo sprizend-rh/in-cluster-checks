@@ -7,7 +7,6 @@ This example demonstrates the simplest way to run in-cluster health validation c
 
 from pathlib import Path
 
-from in_cluster_checks.interfaces.config import InClusterCheckConfig
 from in_cluster_checks.runner import InClusterCheckRunner
 
 

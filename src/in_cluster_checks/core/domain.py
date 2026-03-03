@@ -210,16 +210,16 @@ class RuleDomain(abc.ABC):
         Returns:
             True if rule matches debug filter (or no filter set), False otherwise
         """
-        if not global_config.config.debug_rule_name:
+        if not global_config.debug_rule_name:
             return True
 
-        if rule_class.unique_name == global_config.config.debug_rule_name:
+        if rule_class.unique_name == global_config.debug_rule_name:
             return True
-        if rule_class.title == global_config.config.debug_rule_name:
+        if rule_class.title == global_config.debug_rule_name:
             return True
 
         self.logger.debug(
             f"Skipping {rule_class.unique_name or rule_class.__name__} "
-            f"(debug mode: only running {global_config.config.debug_rule_name})"
+            f"(debug mode: only running {global_config.debug_rule_name})"
         )
         return False
