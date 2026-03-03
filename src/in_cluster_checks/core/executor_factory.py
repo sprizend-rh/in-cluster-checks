@@ -14,6 +14,7 @@ try:
 except ImportError:
     oc = None
 
+from in_cluster_checks import global_config
 from in_cluster_checks.core.executor import NodeExecutor
 from in_cluster_checks.utils.enums import Objectives
 
@@ -183,8 +184,8 @@ class NodeExecutorFactory:
                 self.logger.error(f"Failed to connect to {node_name}: {e}")
                 return node_name, False, str(e)
 
-        # Connect in parallel with max 10 concurrent connections
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        # Connect in parallel with configurable max concurrent connections
+        with ThreadPoolExecutor(max_workers=global_config.max_workers) as executor:
             futures = {
                 executor.submit(connect_node, node_name, node_executor): node_name
                 for node_name, node_executor in self._host_executors_dict.items()

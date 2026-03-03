@@ -11,7 +11,6 @@ import shutil
 import sys
 from pathlib import Path
 
-from in_cluster_checks.interfaces.config import InClusterCheckConfig
 from in_cluster_checks.runner import InClusterCheckRunner
 
 
@@ -194,17 +193,13 @@ def main() -> None:
 
     # Create runner and config
     try:
-        # Create config based on arguments
-        config = InClusterCheckConfig(
+        # Create runner with direct parameters
+        runner = InClusterCheckRunner(
             debug_rule_flag=(args.debug_rule != ""),
             debug_rule_name=args.debug_rule,
-            parallel_execution=True,
-            max_workers=10,
-            command_timeout=120,
             filter_secrets=(args.debug_rule == ""),  # Disable filtering in debug mode
+            max_workers=50,
         )
-
-        runner = InClusterCheckRunner(config=config)
 
         # Handle list commands
         if args.list_domains:
@@ -236,6 +231,7 @@ def main() -> None:
         if args.debug_rule:
             logger.info(f"Debug mode enabled for rule: {args.debug_rule}")
             logger.info("Secret filtering is DISABLED in debug mode")
+            logger.info("JSON output is DISABLED in debug mode")
 
         result_path = runner.run(output_path=output_path)
 

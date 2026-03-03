@@ -69,8 +69,8 @@ class TestFlowsOperator:
         mock_executor.execute_cmd.return_value = (0, "output", "")
 
         # Ensure debug mode is OFF
-        original_debug = global_config.config.debug_rule_flag
-        global_config.config.debug_rule_flag = False
+        original_debug = global_config.debug_rule_flag
+        global_config.debug_rule_flag = False
 
         try:
             validator = DummyValidator(mock_executor)
@@ -80,7 +80,7 @@ class TestFlowsOperator:
             assert out == "output"
             assert "test command" in validator.get_bash_cmd_lines()
         finally:
-            global_config.config.debug_rule_flag = original_debug
+            global_config.debug_rule_flag = original_debug
 
     def test_run_cmd_debug_mode(self, capsys):
         """Test run_cmd in debug mode prints command details."""
@@ -91,8 +91,8 @@ class TestFlowsOperator:
         mock_executor.execute_cmd.return_value = (1, "stdout_output", "stderr_output")
 
         # Enable debug mode
-        original_debug = global_config.config.debug_rule_flag
-        global_config.config.debug_rule_flag = True
+        original_debug = global_config.debug_rule_flag
+        global_config.debug_rule_flag = True
 
         try:
             validator = DummyValidator(mock_executor)
@@ -112,7 +112,7 @@ class TestFlowsOperator:
             assert "[DEBUG] STDERR:" in captured.out
             assert "stderr_output" in captured.out
         finally:
-            global_config.config.debug_rule_flag = original_debug
+            global_config.debug_rule_flag = original_debug
 
     def test_get_output_from_run_cmd_success(self):
         """Test get_output_from_run_cmd with successful command."""
@@ -123,8 +123,8 @@ class TestFlowsOperator:
         mock_executor.execute_cmd.return_value = (0, "command output", "")
 
         # Ensure debug mode is OFF
-        original_debug = global_config.config.debug_rule_flag
-        global_config.config.debug_rule_flag = False
+        original_debug = global_config.debug_rule_flag
+        global_config.debug_rule_flag = False
 
         try:
             validator = DummyValidator(mock_executor)
@@ -133,7 +133,7 @@ class TestFlowsOperator:
             assert output == "command output"
             assert "test command" in validator.get_bash_cmd_lines()
         finally:
-            global_config.config.debug_rule_flag = original_debug
+            global_config.debug_rule_flag = original_debug
 
     def test_get_output_from_run_cmd_debug_mode(self, capsys):
         """Test get_output_from_run_cmd in debug mode."""
@@ -144,8 +144,8 @@ class TestFlowsOperator:
         mock_executor.execute_cmd.return_value = (0, "command output", "")
 
         # Enable debug mode
-        original_debug = global_config.config.debug_rule_flag
-        global_config.config.debug_rule_flag = True
+        original_debug = global_config.debug_rule_flag
+        global_config.debug_rule_flag = True
 
         try:
             validator = DummyValidator(mock_executor)
@@ -160,7 +160,7 @@ class TestFlowsOperator:
             assert "[DEBUG] STDOUT:" in captured.out
             assert "command output" in captured.out
         finally:
-            global_config.config.debug_rule_flag = original_debug
+            global_config.debug_rule_flag = original_debug
 
     def test_get_output_from_run_cmd_failure_debug_mode(self, capsys):
         """Test get_output_from_run_cmd failure in debug mode."""
@@ -171,8 +171,8 @@ class TestFlowsOperator:
         mock_executor.execute_cmd.return_value = (1, "output", "error")
 
         # Enable debug mode
-        original_debug = global_config.config.debug_rule_flag
-        global_config.config.debug_rule_flag = True
+        original_debug = global_config.debug_rule_flag
+        global_config.debug_rule_flag = True
 
         try:
             validator = DummyValidator(mock_executor)
@@ -185,7 +185,7 @@ class TestFlowsOperator:
             assert "[DEBUG] Executing on test-node: test command" in captured.out
             assert "[DEBUG] Command failed with exception:" in captured.out
         finally:
-            global_config.config.debug_rule_flag = original_debug
+            global_config.debug_rule_flag = original_debug
 
     def test_add_to_rule_log(self):
         """Test adding entries to validation log."""
@@ -208,8 +208,8 @@ class TestFlowsOperator:
         mock_executor.execute_cmd.return_value = (0, "success", "")
 
         # Ensure debug mode is OFF
-        original_debug = global_config.config.debug_rule_flag
-        global_config.config.debug_rule_flag = False
+        original_debug = global_config.debug_rule_flag
+        global_config.debug_rule_flag = False
 
         try:
             validator = DummyValidator(mock_executor)
@@ -217,7 +217,7 @@ class TestFlowsOperator:
 
             assert result is True
         finally:
-            global_config.config.debug_rule_flag = original_debug
+            global_config.debug_rule_flag = original_debug
 
     def test_run_cmd_return_is_successful_failure(self):
         """Test run_cmd_return_is_successful returns False for non-zero exit."""
@@ -228,8 +228,8 @@ class TestFlowsOperator:
         mock_executor.execute_cmd.return_value = (1, "", "error")
 
         # Ensure debug mode is OFF
-        original_debug = global_config.config.debug_rule_flag
-        global_config.config.debug_rule_flag = False
+        original_debug = global_config.debug_rule_flag
+        global_config.debug_rule_flag = False
 
         try:
             validator = DummyValidator(mock_executor)
@@ -237,7 +237,7 @@ class TestFlowsOperator:
 
             assert result is False
         finally:
-            global_config.config.debug_rule_flag = original_debug
+            global_config.debug_rule_flag = original_debug
 
     def test_run_and_get_the_nth_field(self):
         """Test run_and_get_the_nth_field extracts fields correctly."""
@@ -248,8 +248,8 @@ class TestFlowsOperator:
         mock_executor.execute_cmd.return_value = (0, "field1 field2 field3", "")
 
         # Ensure debug mode is OFF
-        original_debug = global_config.config.debug_rule_flag
-        global_config.config.debug_rule_flag = False
+        original_debug = global_config.debug_rule_flag
+        global_config.debug_rule_flag = False
 
         try:
             validator = DummyValidator(mock_executor)
@@ -257,7 +257,7 @@ class TestFlowsOperator:
 
             assert result == "field2"
         finally:
-            global_config.config.debug_rule_flag = original_debug
+            global_config.debug_rule_flag = original_debug
 
     def test_get_the_nth_field_static(self):
         """Test _get_the_nth_field static method."""

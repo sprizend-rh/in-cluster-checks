@@ -10,6 +10,7 @@ import logging
 from collections import OrderedDict
 from typing import Any, Dict
 
+from in_cluster_checks import global_config
 from in_cluster_checks.utils.enums import Status
 from in_cluster_checks.utils.secret_filter import SecretFilter
 
@@ -33,9 +34,6 @@ class StructedPrinter:
     Provides structured output formatting in Insights-compatible format.
     Stores results internally for HC-style ParallelRunner compatibility.
     """
-
-    # Filter sensitive data from output (HC-style: matches encrypt_out)
-    filter_secrets = True
 
     def __init__(self):
         """Initialize printer with empty results storage."""
@@ -105,7 +103,7 @@ class StructedPrinter:
         # Filter sensitive data (HC pattern: matches StructedPrinter.encrypt_out)
         # Note: bash_cmd_lines and rule_log may contain secrets from system output
         # Exception filtering is done in the exception's __str__() method
-        if StructedPrinter.filter_secrets:
+        if global_config.filter_secrets:
             bash_cmd_lines = SecretFilter.filter_string_array(bash_cmd_lines)
             rule_log = SecretFilter.filter_string_array(rule_log)
 

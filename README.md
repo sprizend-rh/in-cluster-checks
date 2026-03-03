@@ -1,4 +1,4 @@
-# OpenShift In-Cluster Checks
+# In-Cluster Checks
 
 [![CI](https://github.com/sprizend-rh/in-cluster-checks/workflows/CI/badge.svg)](https://github.com/sprizend-rh/in-cluster-checks/actions)
 [![codecov](https://codecov.io/gh/sprizend-rh/in-cluster-checks/branch/main/graph/badge.svg)](https://codecov.io/gh/sprizend-rh/in-cluster-checks)
@@ -66,23 +66,36 @@ You can also use the framework programmatically in your Python code:
 
 ```python
 from in_cluster_checks.runner import InClusterCheckRunner
-from in_cluster_checks.interfaces.config import InClusterCheckConfig
 from pathlib import Path
 
-# Configure runner
-config = InClusterCheckConfig(
-    debug_rule_flag=False,
-    parallel_execution=True,
-    max_workers=10,
-    command_timeout=120,
-)
+# Create runner with default configuration
+runner = InClusterCheckRunner()
 
-runner = InClusterCheckRunner(config=config)
+# Or customize configuration
+runner = InClusterCheckRunner(
+    max_workers=75,           # Maximum concurrent workers (default: 50)
+    filter_secrets=True,      # Filter sensitive data from output (default: True)
+    debug_rule_flag=False,    # Enable debug mode (default: False)
+    debug_rule_name="",       # Specific rule to debug (default: "")
+)
 
 # Run checks and save results
 output_path = Path("./results/cluster-checks.json")
 runner.run(output_path=output_path)
 ```
+
+### Configuration Options
+
+- **max_workers** (int, default: 50): Maximum number of concurrent workers for parallel execution
+- **filter_secrets** (bool, default: True): Whether to filter sensitive data from output. Automatically disabled in debug mode
+- **debug_rule_flag** (bool, default: False): Enable debug mode with verbose output
+- **debug_rule_name** (str, default: ""): Name of specific rule to run in debug mode
+
+**Note:** When debug mode is enabled:
+- Only the specified rule runs
+- Secret filtering is automatically disabled
+- JSON output is disabled (real-time console output only)
+- Detailed command execution logs are printed
 
 ## Architecture
 

@@ -265,14 +265,14 @@ class FlowsOperator(Operator):
         self._add_cmd_to_log(cmd)
 
         # In debug mode, print command BEFORE execution
-        if global_config.config.debug_rule_flag:
+        if global_config.debug_rule_flag:
             host_name = self.get_host_name()
             print(f"\n[DEBUG] Executing on {host_name}: {cmd}", flush=True)
 
         return_code, out, err = super().run_cmd(cmd, timeout, add_bash_timeout=add_bash_timeout)
 
         # Handle debug validation mode vs normal mode differently
-        if global_config.config.debug_rule_flag:
+        if global_config.debug_rule_flag:
             # Debug validation: print output after execution
             print(f"[DEBUG] Return code: {return_code}", flush=True)
             if out:
@@ -304,7 +304,7 @@ class FlowsOperator(Operator):
         self._add_cmd_to_log(cmd)
 
         # In debug mode, print command BEFORE execution
-        if global_config.config.debug_rule_flag:
+        if global_config.debug_rule_flag:
             host_name = self.get_host_name()
             print(f"\n[DEBUG] Executing on {host_name}: {cmd}", flush=True)
 
@@ -312,7 +312,7 @@ class FlowsOperator(Operator):
             result = super().get_output_from_run_cmd(cmd, timeout, message)
 
             # In debug mode, print output after execution
-            if global_config.config.debug_rule_flag:
+            if global_config.debug_rule_flag:
                 print("[DEBUG] Return code: 0", flush=True)
                 print(f"[DEBUG] STDOUT:\n{result}", flush=True)
                 print("=" * 60, flush=True)
@@ -320,7 +320,7 @@ class FlowsOperator(Operator):
             return result
         except Exception as e:
             # In debug mode, print the exception
-            if global_config.config.debug_rule_flag:
+            if global_config.debug_rule_flag:
                 print(f"[DEBUG] Command failed with exception: {e}", flush=True)
                 print("=" * 60, flush=True)
             # Command failed - details already logged by executor

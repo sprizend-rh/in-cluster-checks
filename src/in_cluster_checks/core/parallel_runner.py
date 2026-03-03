@@ -238,7 +238,7 @@ class ParallelRunner:
         Returns:
             Exception string (filtered if needed)
         """
-        if is_clean_cmd_info and not global_config.config.debug_rule_flag:
+        if is_clean_cmd_info and not global_config.debug_rule_flag:
             return "** full trace is not available here for this rule **"
         return exception
 
@@ -358,7 +358,7 @@ class ParallelRunner:
 
         except Exception as e:
             # Re-raise in debug mode (HC behavior)
-            if global_config.config.debug_rule_flag:
+            if global_config.debug_rule_flag:
                 raise
 
             # Classify and print exception using HC's pattern
