@@ -195,7 +195,7 @@ Test your changes manually using the CLI or programmatically:
 
 ```bash
 # Using CLI with debug mode to test a specific rule
-openshift-checks --debug-rule your_rule_name
+in-cluster-checks --debug-rule your_rule_name
 
 # Or test programmatically
 python -c "

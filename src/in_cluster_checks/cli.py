@@ -136,7 +136,7 @@ def main() -> None:
         description="Run OpenShift in-cluster health validation checks\n\n"
         "This tool runs validation rules directly on OpenShift cluster nodes using 'oc debug'.\n"
         "You must be logged into an OpenShift cluster before running this tool.",
-        prog="openshift-checks",
+        prog="in-cluster-checks",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 

@@ -84,7 +84,7 @@ The extracted framework is **100% generic** and contains no confidential Red Hat
 ### ✅ Recently Added
 
 6. **Command-Line Interface**
-   - `openshift-checks` command via console script
+   - `in-cluster-checks` command via console script
    - Arguments: --log-level, --output, --debug-rule
    - List commands: --list-domains, --list-rules
    - Error handling with proper exit codes
@@ -139,7 +139,7 @@ The extracted framework is **100% generic** and contains no confidential Red Hat
 
 - [ ] Configuration file support:
   - YAML/JSON config files
-  - Default location: `~/.config/openshift-checks/config.yaml`
+  - Default location: `~/.config/in-cluster-checks/config.yaml`
   - CLI override with `--config` flag
 
 - [ ] Advanced filtering:
@@ -209,7 +209,7 @@ The project will be considered production-ready when:
 
 - **GitHub**: https://github.com/sprizend-rh/in-cluster-checks
 - **Package Name**: `in-cluster-checks`
-- **CLI Command**: `openshift-checks`
+- **CLI Command**: `in-cluster-checks`
 - **Python Module**: `in_cluster_checks`
 - **License**: GPL-3.0-or-later
 
