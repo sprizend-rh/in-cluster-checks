@@ -36,7 +36,7 @@ dev = [
 ]
 
 [project.scripts]
-openshift-checks = "in_cluster_checks.cli:main"
+in-cluster-checks = "in_cluster_checks.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/sprizend-rh/in-cluster-checks"

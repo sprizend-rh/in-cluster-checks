@@ -91,7 +91,7 @@ class TestCLI:
         mock_runner.run.return_value = "/tmp/results.json"
         mock_runner_class.return_value = mock_runner
         
-        test_args = ['openshift-checks', '--output', '/tmp/test.json']
+        test_args = ['in-cluster-checks', '--output', '/tmp/test.json']
         with patch.object(sys, 'argv', test_args):
             with pytest.raises(SystemExit) as exc_info:
                 main()
@@ -100,7 +100,7 @@ class TestCLI:
     @patch('in_cluster_checks.cli.check_oc_available')
     def test_main_list_domains(self, mock_check_oc, capsys):
         """Test main with --list-domains."""
-        test_args = ['openshift-checks', '--list-domains']
+        test_args = ['in-cluster-checks', '--list-domains']
         with patch.object(sys, 'argv', test_args):
             with patch('in_cluster_checks.cli.list_domains') as mock_list:
                 mock_list.side_effect = SystemExit(0)
@@ -112,7 +112,7 @@ class TestCLI:
     @patch('in_cluster_checks.cli.check_oc_available')
     def test_main_list_rules(self, mock_check_oc, capsys):
         """Test main with --list-rules."""
-        test_args = ['openshift-checks', '--list-rules']
+        test_args = ['in-cluster-checks', '--list-rules']
         with patch.object(sys, 'argv', test_args):
             with patch('in_cluster_checks.cli.list_rules') as mock_list:
                 mock_list.side_effect = SystemExit(0)
@@ -129,7 +129,7 @@ class TestCLI:
         mock_runner.run.return_value = "/tmp/results.json"
         mock_runner_class.return_value = mock_runner
         
-        test_args = ['openshift-checks', '--debug-rule', 'test_rule', '--output', '/tmp/test.json']
+        test_args = ['in-cluster-checks', '--debug-rule', 'test_rule', '--output', '/tmp/test.json']
         with patch.object(sys, 'argv', test_args):
             with pytest.raises(SystemExit) as exc_info:
                 main()

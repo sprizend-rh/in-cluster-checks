@@ -22,7 +22,7 @@ pytest
 
 2. **Integration testing** (requires live cluster):
    - Ensure `oc login` to a test cluster
-   - Run: `openshift-checks --output ./test-results.json`
+   - Run: `in-cluster-checks --output ./test-results.json`
    - Verify JSON output format
 
 ## Test Structure

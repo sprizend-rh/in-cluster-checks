@@ -45,19 +45,19 @@ Then run the checks:
 
 ```bash
 # Run all checks (output saved to ./cluster-checks.json)
-openshift-checks --output ./cluster-checks.json
+in-cluster-checks --output ./cluster-checks.json
 
 # Run with debug logging
-openshift-checks --log-level DEBUG
+in-cluster-checks --log-level DEBUG
 
 # Debug a specific rule (disables secret filtering)
-openshift-checks --debug-rule "check_disk_usage"
+in-cluster-checks --debug-rule "check_disk_usage"
 
 # List available domains
-openshift-checks --list-domains
+in-cluster-checks --list-domains
 
 # List all available rules
-openshift-checks --list-rules
+in-cluster-checks --list-rules
 ```
 
 ## Programmatic Usage
