@@ -33,6 +33,7 @@ class InClusterCheckRunner:
 
     def __init__(
         self,
+        active_profiler: str,
         debug_rule_flag: bool = False,
         debug_rule_name: str = "",
         max_workers: int = 50,
@@ -42,6 +43,7 @@ class InClusterCheckRunner:
         Initialize runner.
 
         Args:
+            active_profiler: Active profiler name (e.g., 'general', 'nvidia', 'telco')
             debug_rule_flag: Enable debug mode for detailed output
             debug_rule_name: Name of specific rule to run in debug mode
             max_workers: Maximum number of concurrent workers for parallel execution
@@ -54,6 +56,7 @@ class InClusterCheckRunner:
 
         # Set global config so other components can access it
         global_config.set_config(
+            active_profiler_val=active_profiler,
             debug_rule_flag_val=debug_rule_flag,
             debug_rule_name_val=debug_rule_name,
             max_workers_val=max_workers,
