@@ -36,6 +36,7 @@ class Rule(FlowsOperator):
     PREREQUISITES_CHECKS = []
     unique_name = None
     title = None
+    supported_profilers = {'general'}
 
     def __init__(self, host_executor, node_executors=None):
         """
@@ -100,7 +101,18 @@ class Rule(FlowsOperator):
                 return PrerequisiteResult.met()
         """
         return PrerequisiteResult.met()
+    
+    @classmethod
+    def is_enabled_for_active_profiler(cls) -> bool:
+        """Check if this rule is enabled for the currently active profiler.
 
+        Returns True if there's an intersection between the active profiler's
+        includes and this rule's supported_profilers.
+        """
+        active_profilers = global_config.profilers_hierarchy[global_config.active_profiler]
+        intersection_profilers = active_profilers.intersection(cls.supported_profilers)
+        return bool(intersection_profilers)
+            
     @abc.abstractmethod
     def run_rule(self) -> RuleResult:
         """

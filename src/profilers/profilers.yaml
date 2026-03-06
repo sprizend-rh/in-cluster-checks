@@ -1,0 +1,37 @@
+profilers:
+
+  general:  # common rules
+    # may contain technical groups in code, but no checks listed here
+
+  telco:
+    include:
+      - general
+      - rh-nokia
+      - telco-base
+
+  rh-nokia:
+    include:
+      - general
+      - telco-base
+
+  telco-base:
+    include:
+      - general
+
+  ai:
+    include:
+      - ai-base
+      - gpu
+
+  ai-base:
+    include:
+      - general
+
+  gpu:
+    include:
+      - general
+
+  nvidia:
+    include:
+      - ai
+      - general
