@@ -177,6 +177,14 @@ def main() -> None:
         help="List all available rules by domain and exit",
     )
 
+    parser.add_argument(
+        "--profiler",
+        type=str,
+        default="general",
+        help="Active profiler used to filter rules according to solution or use case (default: general). "
+        "Examples: general, nvidia, ai, telco",
+    )
+
     args = parser.parse_args()
 
     # Setup logging
@@ -195,6 +203,7 @@ def main() -> None:
     try:
         # Create runner with direct parameters
         runner = InClusterCheckRunner(
+            active_profiler=args.profiler,
             debug_rule_flag=(args.debug_rule != ""),
             debug_rule_name=args.debug_rule,
             max_workers=50,
