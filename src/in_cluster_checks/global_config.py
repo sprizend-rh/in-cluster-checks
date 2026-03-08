@@ -39,4 +39,3 @@ def set_config(
     max_workers = max_workers_val
     active_profile = active_profile_val
     ProfileLoader.load(profiles_hierarchy)
-

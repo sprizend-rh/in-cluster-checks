@@ -115,7 +115,7 @@ class Rule(FlowsOperator):
                 return PrerequisiteResult.met()
         """
         return PrerequisiteResult.met()
-    
+
     @classmethod
     def is_enabled_for_active_profile(cls) -> bool:
         """Check if this rule is enabled for the currently active profile.
@@ -126,7 +126,7 @@ class Rule(FlowsOperator):
         active_profiles = global_config.profiles_hierarchy[global_config.active_profile]
         intersection_profiles = active_profiles.intersection(cls.supported_profiles)
         return bool(intersection_profiles)
-            
+
     @abc.abstractmethod
     def run_rule(self) -> RuleResult:
         """
