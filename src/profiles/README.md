@@ -1,22 +1,22 @@
-# Profilers System - Requirements and Design
+# Profiles System - Requirements and Design
 
 ## Overview
 
-The Profilers system is a dependency management framework for organizing and selecting rule sets in the in-cluster-checks project. It provides hierarchical profiler definitions with automatic transitive dependency resolution.
+The Profiles system is a dependency management framework for organizing and selecting rule sets in the in-cluster-checks project. It provides hierarchical profile definitions with automatic transitive dependency resolution.
 
 ## Requirements
 
 ### Functional Requirements
 
-1. **Hierarchical Profiler Organization**
-   - Support nested profiler definitions with include relationships
-   - Allow profilers to reference other profilers as dependencies
+1. **Hierarchical Profile Organization**
+   - Support nested profile definitions with include relationships
+   - Allow profiles to reference other profiles as dependencies
    - Resolve transitive dependencies automatically (flatten dependency tree)
 
 2. **YAML Configuration**
-   - Store profiler definitions in a YAML file (`profilers.yaml`)
+   - Store profile definitions in a YAML file (`profiles.yaml`)
    - Support simple, readable configuration format
-   - Allow profilers with no dependencies (leaf nodes)
+   - Allow profiles with no dependencies (leaf nodes)
 
 3. **Dependency Resolution**
    - Automatically resolve all transitive dependencies at load time
@@ -25,12 +25,12 @@ The Profilers system is a dependency management framework for organizing and sel
 
 4. **Error Handling**
    - Detect and report circular dependencies
-   - Detect and report undefined profiler references
+   - Detect and report undefined profile references
    - Provide helpful error messages with available options
 
 5. **Global Singleton Access**
-   - Provide a global `profiler` object accessible throughout the codebase
-   - Allow simple dictionary-like access to profiler data
+   - Provide a global `profile` object accessible throughout the codebase
+   - Allow simple dictionary-like access to profile data
    - Support standard dict operations (keys, values, items, etc.)
 
 ### Non-Functional Requirements
@@ -46,7 +46,7 @@ The Profilers system is a dependency management framework for organizing and sel
    - Pretty-printed output for debugging
 
 3. **Maintainability**
-   - Clean separation of concerns (loader, profiler, storage)
+   - Clean separation of concerns (loader, profile, storage)
    - Well-tested with comprehensive unit tests
    - Clear documentation and examples
 
@@ -56,23 +56,23 @@ The Profilers system is a dependency management framework for organizing and sel
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    profilers.yaml                        │
+│                    profiles.yaml                        │
 │  - YAML configuration file                               │
-│  - Defines profiler hierarchy                            │
+│  - Defines profile hierarchy                            │
 └─────────────────────┬───────────────────────────────────┘
                       │
                       ▼
 ┌─────────────────────────────────────────────────────────┐
-│                 ProfilerLoader                           │
+│                 ProfileLoader                           │
 │  - Reads YAML configuration                              │
 │  - Resolves transitive dependencies                      │
 │  - Detects circular dependencies                         │
-│  - Populates global profiler singleton                   │
+│  - Populates global profile singleton                   │
 └─────────────────────┬───────────────────────────────────┘
                       │
                       ▼
 ┌─────────────────────────────────────────────────────────┐
-│                    Profiler                              │
+│                    Profile                              │
 │  - Inherits from dict[str, set[str]]                     │
 │  - Global singleton instance                             │
 │  - Stores flat, resolved dependencies                    │
@@ -83,24 +83,24 @@ The Profilers system is a dependency management framework for organizing and sel
 
 ### Component Design
 
-#### 1. **profilers.yaml** - Configuration File
+#### 1. **profiles.yaml** - Configuration File
 
-Location: `src/profilers/profilers.yaml`
+Location: `src/profiles/profiles.yaml`
 
 Structure:
 ```yaml
-profilers:
-  profiler_name:
+profiles:
+  profile_name:
     include:
       - dependency1
       - dependency2
 
-  leaf_profiler: null  # No dependencies
+  leaf_profile: null  # No dependencies
 ```
 
 Example:
 ```yaml
-profilers:
+profiles:
   all:
     include: [telco, ai]
 
@@ -116,46 +116,46 @@ profilers:
     include: [general]
 ```
 
-#### 2. **Profiler** Class - Data Container
+#### 2. **Profile** Class - Data Container
 
-File: `src/profilers/profiler.py`
+File: `src/profiles/profile.py`
 
 Key Features:
 - Inherits from `dict[str, set[str]]`
-- Global singleton instance: `profiler`
+- Global singleton instance: `profile`
 - Enhanced `__getitem__()` with helpful error messages
 - JSON-formatted `__str__()` representation
 - Concise `__repr__()` for debugging
 
 ```python
-class Profiler(dict):
-    """Maps profiler names to their flat, resolved dependencies."""
+class Profile(dict):
+    """Maps profile names to their flat, resolved dependencies."""
 
     def __getitem__(self, key: str) -> set:
-        """Get profiler with helpful error if not found."""
+        """Get profile with helpful error if not found."""
 
-    def format_profilers(self) -> str:
+    def format_profiles(self) -> str:
         """Return JSON-formatted representation."""
 ```
 
-#### 3. **ProfilerLoader** Class - Loading and Resolution
+#### 3. **ProfileLoader** Class - Loading and Resolution
 
-File: `src/profilers/loader.py`
+File: `src/profiles/loader.py`
 
 Key Features:
 - Static methods (no instance needed)
 - Two-pass loading algorithm
 - Recursive dependency resolution with cycle detection
-- Populates global `profiler` singleton
+- Populates global `profile` singleton
 
 ```python
-class ProfilerLoader:
+class ProfileLoader:
     @staticmethod
     def load(config_path: str | None = None) -> None:
-        """Load and resolve profiler configuration."""
+        """Load and resolve profile configuration."""
 
     @staticmethod
-    def _resolve_and_populate(raw_profilers: dict) -> None:
+    def _resolve_and_populate(raw_profiles: dict) -> None:
         """Two-pass resolution: parse then resolve."""
 
     @staticmethod
@@ -175,9 +175,9 @@ class ProfilerLoader:
 
 2. **Second Pass - Resolve Transitive Dependencies**
    ```python
-   for name in profilers:
+   for name in profiles:
        resolved = resolve_recursive(name)  # DFS traversal
-       profiler[name] = resolved           # Store flat set
+       profile[name] = resolved           # Store flat set
    ```
 
 **Recursive Resolution (DFS with Cycle Detection):**
@@ -203,7 +203,7 @@ function resolve_recursive(name, visiting, path):
 
 Given YAML:
 ```yaml
-profilers:
+profiles:
   all: {include: [telco, ai]}
   telco: {include: [general, rh-nokia]}
   rh-nokia: {include: [general, telco-base]}
@@ -237,20 +237,20 @@ Result: all = {telco, ai, general, rh-nokia, telco-base}
 ### File Structure
 
 ```
-src/profilers/
+src/profiles/
 ├── __init__.py              # Empty (no exports)
-├── profiler.py              # Profiler class + global singleton
-├── loader.py                # ProfilerLoader class
-├── profilers.yaml           # Configuration file
+├── profile.py              # Profile class + global singleton
+├── loader.py                # ProfileLoader class
+├── profiles.yaml           # Configuration file
 └── example.py               # Usage examples
 ```
 
 ### Data Flow
 
 ```
-1. ProfilerLoader.load()
+1. ProfileLoader.load()
        ↓
-2. Read profilers.yaml
+2. Read profiles.yaml
        ↓
 3. yaml.safe_load() → dict
        ↓
@@ -260,9 +260,9 @@ src/profilers/
        ↓
 6. Second pass: resolve recursively
        ↓
-7. Populate global profiler singleton
+7. Populate global profile singleton
        ↓
-8. Ready for use: profiler["profiler_name"]
+8. Ready for use: profile["profile_name"]
 ```
 
 ## Usage
@@ -270,36 +270,36 @@ src/profilers/
 ### Basic Usage
 
 ```python
-from profilers.loader import ProfilerLoader
-from profilers.profiler import profiler
+from profiles.loader import ProfileLoader
+from profiles.profile import profile
 
 # Load configuration
-ProfilerLoader.load()
+ProfileLoader.load()
 
-# Access profiler dependencies (flat, resolved)
-nvidia_deps = profiler["nvidia"]
+# Access profile dependencies (flat, resolved)
+nvidia_deps = profile["nvidia"]
 # Returns: {'ai', 'ai-base', 'gpu', 'general'}
 
-# Iterate over all profilers
-for name, deps in profiler.items():
+# Iterate over all profiles
+for name, deps in profile.items():
     print(f"{name}: {deps}")
 
 # Pretty print
-print(profiler)  # JSON-formatted output
+print(profile)  # JSON-formatted output
 ```
 
 ### Error Handling
 
 ```python
-# Non-existent profiler
+# Non-existent profile
 try:
-    deps = profiler["does_not_exist"]
+    deps = profile["does_not_exist"]
 except KeyError as e:
     print(e)
     # Output:
-    # Profiler 'does_not_exist' not found.
+    # Profile 'does_not_exist' not found.
     #
-    # Available profilers:
+    # Available profiles:
     # {
     #     "ai": ["ai-base", "general", "gpu"],
     #     "all": ["ai", "general", "telco", ...],
@@ -310,25 +310,25 @@ except KeyError as e:
 ### Custom Configuration Path
 
 ```python
-ProfilerLoader.load("/path/to/custom/profilers.yaml")
+ProfileLoader.load("/path/to/custom/profiles.yaml")
 ```
 
 ## Testing
 
 ### Test Coverage
 
-File: `tests/test_profilers.py`
+File: `tests/test_profiles.py`
 
 **7 Test Cases:**
 
-1. ✅ **test_all_contains_all_profilers**
-   - Validates 'all' transitively includes every profiler
+1. ✅ **test_all_contains_all_profiles**
+   - Validates 'all' transitively includes every profile
 
 2. ✅ **test_recursion_3_levels**
    - Tests 4 levels of dependency nesting
    - Path: all → telco → rh-nokia → telco-base → general
 
-3. ✅ **test_non_existent_profiler_raises_exception**
+3. ✅ **test_non_existent_profile_raises_exception**
    - Verifies helpful KeyError messages
 
 4. ✅ **test_circular_dependency_detection**
@@ -337,8 +337,8 @@ File: `tests/test_profilers.py`
 5. ✅ **test_missing_dependency_raises_exception**
    - Validates undefined reference detection
 
-6. ✅ **test_empty_profiler_has_no_dependencies**
-   - Tests leaf nodes (profilers with no includes)
+6. ✅ **test_empty_profile_has_no_dependencies**
+   - Tests leaf nodes (profiles with no includes)
 
 7. ✅ **test_transitive_dependencies_no_duplicates**
    - Ensures flat sets contain unique entries
@@ -347,19 +347,19 @@ File: `tests/test_profilers.py`
 
 ```bash
 source .venv/bin/activate
-pytest tests/test_profilers.py -v
+pytest tests/test_profiles.py -v
 ```
 
 ## Design Decisions
 
 ### 1. **Global Singleton Pattern**
 
-**Decision:** Use a global `profiler` singleton instance.
+**Decision:** Use a global `profile` singleton instance.
 
 **Rationale:**
 - Single source of truth across the application
-- Simple access pattern: `from profilers.profiler import profiler`
-- No need to pass profiler instance around
+- Simple access pattern: `from profiles.profile import profile`
+- No need to pass profile instance around
 - Matches existing project patterns
 
 **Alternative Considered:** Factory pattern with instance creation
@@ -380,7 +380,7 @@ pytest tests/test_profilers.py -v
 
 ### 3. **Inherit from dict**
 
-**Decision:** `Profiler` inherits from `dict[str, set[str]]`.
+**Decision:** `Profile` inherits from `dict[str, set[str]]`.
 
 **Rationale:**
 - Familiar API (keys, values, items, in, len)
@@ -421,16 +421,16 @@ pytest tests/test_profilers.py -v
 
 Potential improvements (not currently implemented):
 
-1. **Profiler Metadata**
+1. **Profile Metadata**
    - Add descriptions, tags, or other metadata
    - Example: `{name: "ai", description: "AI workloads", include: [...]}`
 
 2. **Rule Lists**
-   - Associate actual rules with profilers
+   - Associate actual rules with profiles
    - Example: `{name: "ai", include: [...], rules: ["check_gpu", ...]}`
 
 3. **Validation**
-   - Require 'all' profiler to exist
+   - Require 'all' profile to exist
    - Validate 'all' includes everything
    - Custom validation hooks
 
@@ -440,13 +440,13 @@ Potential improvements (not currently implemented):
    - Incremental resolution
 
 5. **CLI Integration**
-   - `--profiler nvidia` to select profiler
-   - `--list-profilers` to show available options
-   - Filter rules by profiler selection
+   - `--profile nvidia` to select profile
+   - `--list-profiles` to show available options
+   - Filter rules by profile selection
 
 ## Summary
 
-The Profilers system provides a robust, well-tested framework for managing hierarchical rule dependencies. Key strengths:
+The Profiles system provides a robust, well-tested framework for managing hierarchical rule dependencies. Key strengths:
 
 - **Simple**: Easy YAML configuration, intuitive API
 - **Fast**: O(1) lookups, pre-resolved dependencies

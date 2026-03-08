@@ -178,10 +178,10 @@ def main() -> None:
     )
 
     parser.add_argument(
-        "--profiler",
+        "--profile",
         type=str,
         default="general",
-        help="Active profiler used to filter rules according to solution or use case (default: general). "
+        help="Active profile used to filter rules according to solution or use case (default: general). "
         "Examples: general, nvidia, ai, telco",
     )
 
@@ -203,7 +203,7 @@ def main() -> None:
     try:
         # Create runner with direct parameters
         runner = InClusterCheckRunner(
-            active_profiler=args.profiler,
+            active_profile=args.profile,
             debug_rule_flag=(args.debug_rule != ""),
             debug_rule_name=args.debug_rule,
             max_workers=50,

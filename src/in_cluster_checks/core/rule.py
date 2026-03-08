@@ -40,6 +40,7 @@ class Rule(FlowsOperator):
     unique_name = None
     title = None
     links = None
+    supported_profiles = {'general'}
 
     def __init__(self, host_executor, node_executors=None):
         """
@@ -116,15 +117,15 @@ class Rule(FlowsOperator):
         return PrerequisiteResult.met()
     
     @classmethod
-    def is_enabled_for_active_profiler(cls) -> bool:
-        """Check if this rule is enabled for the currently active profiler.
+    def is_enabled_for_active_profile(cls) -> bool:
+        """Check if this rule is enabled for the currently active profile.
 
-        Returns True if there's an intersection between the active profiler's
-        includes and this rule's supported_profilers.
+        Returns True if there's an intersection between the active profile's
+        includes and this rule's supported_profiles.
         """
-        active_profilers = global_config.profilers_hierarchy[global_config.active_profiler]
-        intersection_profilers = active_profilers.intersection(cls.supported_profilers)
-        return bool(intersection_profilers)
+        active_profiles = global_config.profiles_hierarchy[global_config.active_profile]
+        intersection_profiles = active_profiles.intersection(cls.supported_profiles)
+        return bool(intersection_profiles)
             
     @abc.abstractmethod
     def run_rule(self) -> RuleResult:

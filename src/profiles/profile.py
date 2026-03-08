@@ -1,44 +1,44 @@
-"""Profilers configuration for managing rule dependencies."""
+"""Profiles configuration for managing rule dependencies."""
 
 import json
 
 
-class Profilers(dict):
-    """Profilers configuration mapping profiler names to their included dependencies.
+class Profiles(dict):
+    """Profiles configuration mapping profile names to their included dependencies.
 
     Inherits from dict[str, set[str]] where:
-    - key: profiler name
+    - key: profile name
     - value: set of all transitive dependencies (flat, fully resolved)
 
-    Dependencies are resolved at load time by ProfilerLoader, which flattens
+    Dependencies are resolved at load time by ProfileLoader, which flattens
     the dependency tree and detects circular dependencies.
     """
 
     def __getitem__(self, key: str) -> set:
-        """Get profiler dependencies with helpful error message.
+        """Get profile dependencies with helpful error message.
 
         Args:
-            key: Profiler name.
+            key: Profile name.
 
         Returns:
             Set of all transitive dependencies.
 
         Raises:
-            KeyError: If profiler doesn't exist, with list of available profilers.
+            KeyError: If profile doesn't exist, with list of available profiles.
         """
         if key not in self:
-            available = self.format_profilers()
+            available = self.format_profiles()
             raise KeyError(
-                f"Profiler '{key}' not found.\n\n"
-                f"Available profilers:\n{available}"
+                f"Profile '{key}' not found.\n\n"
+                f"Available profiles:\n{available}"
             )
         return super().__getitem__(key)
 
-    def format_profilers(self) -> str:
-        """Format profilers as a JSON-formatted dict representation.
+    def format_profiles(self) -> str:
+        """Format profiles as a JSON-formatted dict representation.
 
         Returns:
-            JSON-formatted string representation of the profiler dict.
+            JSON-formatted string representation of the profile dict.
         """
         if not self:
             return "{}"
@@ -52,8 +52,8 @@ class Profilers(dict):
 
     def __str__(self) -> str:
         """Return formatted string representation."""
-        return self.format_profilers()
+        return self.format_profiles()
 
     def __repr__(self) -> str:
         """Return detailed representation."""
-        return f"<Profilers with {len(self)} profiler(s)>"
+        return f"<Profiles with {len(self)} profile(s)>"

@@ -1,4 +1,4 @@
-profilers:
+profiles:
 
   general:  # common rules
     # may contain technical groups in code, but no checks listed here
