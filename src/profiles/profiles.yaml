@@ -1,37 +1,20 @@
 profiles:
+  # --- Layer 1: Core ---
+  general:
+    description: "Global common rules"
 
-  general:  # common rules
-    # may contain technical groups in code, but no checks listed here
-
-  telco:
-    include:
-      - general
-      - rh-nokia
-      - telco-base
-
-  rh-nokia:
-    include:
-      - general
-      - telco-base
-
+  # --- Layer 2: Domains ---
   telco-base:
-    include:
-      - general
-
-  ai:
-    include:
-      - ai-base
-      - gpu
-
+    include: [general]
   ai-base:
-    include:
-      - general
+    include: [general]
 
+  # --- Layer 3: Platforms & Hardware ---
   gpu:
-    include:
-      - general
+    include: [ai-base] # GPU implies AI-base rules
+  rh-nokia:
+    include: [telco-base]
 
-  nvidia:
-    include:
-      - ai
-      - general
+  # --- Layer 4: Specific Implementations ---
+
+
