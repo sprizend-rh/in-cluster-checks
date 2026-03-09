@@ -190,6 +190,19 @@ pytest tests/rules/<domain>/test_<file>.py -v
 
 **NEVER use `self.logger` in rules** - Return error messages via `RuleResult.failed()` or `RuleResult.warning()` instead. The framework handles logging automatically.
 
+**Use SafeCmdString for dynamic commands** - Commands with variables MUST use `SafeCmdString` to prevent shell injection:
+```python
+from in_cluster_checks.utils.safe_cmd_string import SafeCmdString
+
+# Static - plain string OK
+self.run_cmd("cat /etc/hostname")
+
+# Dynamic - use SafeCmdString
+cmd = SafeCmdString("cat {file}").format(file="/etc/hostname")
+self.run_cmd(cmd)
+```
+Pre-commit linter enforces: template must be string literal (not variable/f-string/expression), one SafeCmdString per line. Runtime blocks dangerous shell metacharacters in format() variables.
+
 ## Checklist
 
 - [ ] Rule class created with `objective_hosts`, `unique_name`, `title`
@@ -197,6 +210,7 @@ pytest tests/rules/<domain>/test_<file>.py -v
 - [ ] `is_prerequisite_fulfilled()` added if rule requires specific tools/conditions
 - [ ] `UnExpectedSystemOutput` used for command failures
 - [ ] NO use of `self.logger` in rule - return error messages via RuleResult
+- [ ] Dynamic commands use `SafeCmdString` (pre-commit will validate)
 - [ ] Rule registered in the appropriate domain's `get_rule_classes()`
 - [ ] Tests written with both `scenario_passed` and `scenario_failed`
 - [ ] Domain test updated to include new rule
