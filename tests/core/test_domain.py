@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from in_cluster_checks.core.domain import RuleDomain
+from in_cluster_checks.core.executor import OrchestratorExecutor
 from in_cluster_checks.core.rule import (
     OrchestratorRule,
     RuleResult,

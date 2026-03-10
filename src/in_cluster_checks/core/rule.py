@@ -36,11 +36,11 @@ class Rule(FlowsOperator):
     """
 
     PREREQUISITES_CHECKS = []
-    supported_profilers = {'general'}
+    supported_profilers = {"general"}
     unique_name = None
     title = None
     links = None
-    supported_profiles = {'general'}
+    supported_profiles = {"general"}
 
     def __init__(self, host_executor, node_executors=None):
         """
