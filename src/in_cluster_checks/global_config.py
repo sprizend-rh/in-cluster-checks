@@ -38,4 +38,5 @@ def set_config(
     debug_rule_name = debug_rule_name_val
     max_workers = max_workers_val
     active_profile = active_profile_val
+    profiles_hierarchy = Profiles()
     ProfileLoader.load(profiles_hierarchy)
