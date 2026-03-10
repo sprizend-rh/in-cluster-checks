@@ -14,9 +14,14 @@ from in_cluster_checks.rules.network.ovnk8s_validations import (
     MTUOverlayInterfaces,
     NodesHaveOvnkubeNodePod,
 )
-from in_cluster_checks.rules.network.ovs_validations import OvsInterfaceAndPortFound
-
-# from in_cluster_checks.rules.network.ovs_validations import Bond0DnsServersComparison
+from in_cluster_checks.rules.network.ovs_validations import (
+    BondDnsServersComparison,
+    BondVlanOvsAttachmentCheck,
+    OvnRoutingHealthCheck,
+    OvsBridgeInterfaceHealthCheck,
+    OvsInterfaceAndPortFound,
+    OvsPhysicalPortHealthCheck,
+)
 from in_cluster_checks.rules.network.whereabouts_validations import (
     WhereaboutsDuplicateIPAddresses,
     WhereaboutsExistingAllocations,
@@ -45,7 +50,11 @@ class NetworkValidationDomain(RuleDomain):
         """
         return [
             OvsInterfaceAndPortFound,
-            # Bond0DnsServersComparison,
+            OvsPhysicalPortHealthCheck,
+            OvsBridgeInterfaceHealthCheck,
+            BondVlanOvsAttachmentCheck,
+            OvnRoutingHealthCheck,
+            BondDnsServersComparison,
             AreAllNodesConnected,
             VerifyBondedInterfacesUp,
             NodesHaveOvnkubeNodePod,
