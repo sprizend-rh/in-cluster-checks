@@ -1,94 +1,26 @@
-# Contributing to OpenShift In-Cluster Checks
+# Contributing to In-Cluster Checks
 
 Thank you for your interest in contributing! This document provides guidelines for contributing to the project.
 
 ## Table of Contents
 
-- [Code of Conduct](#code-of-conduct)
-- [Getting Started](#getting-started)
+- [Understanding the Framework](#understanding-the-rules-hierarchy)
 - [Development Setup](#development-setup)
-- [Making Changes](#making-changes)
+- [Making Code Changes](#making-code-changes)
 - [Adding New Rules](#adding-new-rules)
 - [Adding New Domains](#adding-new-domains)
-- [Testing](#testing)
 - [Code Style](#code-style)
-- [Submitting Changes](#submitting-changes)
+- [Testing](#testing)
+- [Submitting Code Changes](#submitting-code-changes)
+- [Questions](#questions)
 
-<!-- can be deleted -->
-## Code of Conduct
-
-This project follows a code of conduct. By participating, you are expected to uphold this code. Please be respectful and professional in all interactions.
-
-## Getting Started
-
-1. **Fork the repository** on GitHub <!-- do we want to give gitlab url? --> 
-2. **Clone your fork** locally:
-   ```bash
-   git clone https://github.com/YOUR-USERNAME/in-cluster-checks.git
-   cd in-cluster-checks
-   ```
-
-3. **Add upstream remote**:
-   ```bash
-   git remote add upstream https://github.com/sprizend-rh/in-cluster-checks.git
-   ```
-
-## Development Setup
-
-1. **Create a virtual environment**:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-
-2. **Install development dependencies**:
-    <!-- what is ".[dev]"? will it install requirements as Python >= 3.12? -->
-   ```bash
-   pip install -e ".[dev]"
-   ```
-
-3. **Install pre-commit hooks**:
-   ```bash
-   pre-commit install
-   ```
-
-4. **Verify setup**:
-   ```bash
-   pytest
-   pre-commit run --all-files
-   ```
-
-## Making Code Changes
-
-1. **Create a new branch**:
-   ```bash
-   git checkout -b YOUR-FEATURE-NAME
-   ```
-
-2. **Make your changes** following the code style guidelines
-
-3. **Test your changes**:
-    <!-- do we want to add proceedure how to test the code on env'? -->
-   ```bash
-   pytest
-   pre-commit run --all-files
-   ```
-
-4. **Commit your changes**:
-    <!-- should commit be related to JIRA ticket which can be more informative about the contribution? -->
-   ```bash
-   git add .
-   git commit -m "Description of changes"
-   ```
-
-   <!-- we should mention 'git pull' command and also 'git push' -->
 
 ## Understanding the Rules Hierarchy
 
 The in-cluster-checks framework is organized into a three-level hierarchy:
 
 ### 1. **Rules** (Bottom Level)
-Individual validation checks that run on cluster nodes. Each rule:
+Individual rules that run on cluster nodes. Each rule:
 - Inherits from the `Rule` base class
 - Executes specific commands via `oc debug`
 - Returns pass/fail results with diagnostic information
@@ -107,10 +39,14 @@ Logical groupings of related rules. Each domain:
 **Location:** `src/in_cluster_checks/domains/`
 
 **Example Domains:**
-- `hw` - Hardware validation rules (disk, CPU, memory)
-- `network` - Network connectivity and configuration rules
+- `hw` - Hardware checks (disk usage, CPU, memory, temperature)
+- `network` - Network connectivity and configuration (OVN-K8s, OVS, Whereabouts)
 - `linux` - OS-level checks (kernel, packages, services)
-- `storage` - Storage and filesystem validation
+- `storage` - Storage and filesystem checks
+- `k8s` - Kubernetes-specific checks
+- `etcd` - etcd cluster health checks
+- `security` - Security-related checks (certificate expiry)
+- `hw_fw_details` - Hardware and firmware inventory collection
 
 ### 3. **Runner** (Top Level)
 The main orchestrator that:
@@ -135,53 +71,58 @@ Runner (discovers domains)
 ```
 
 When adding new functionality:
-- **Adding a check** → Create a new Rule in an existing domain
-- **Adding a new category** → Create a new Domain with its rules
-- **No registration needed** → The Runner auto-discovers everything
+- **Adding a rule** → Create a new Rule in an existing domain
+- **Adding a new domain** → Create a new Domain with its rules, only if it's not covered yet
+
 
 ## Adding New Rules
 
-To add a new validation rule follow the following guidelines:
+To add a new rule, follow these guidelines:
 
 ### 1. Create the Rule Class
 
-Create a new rule in the appropriate domain directory (e.g., `src/in_cluster_checks/rules/hw/`):
+Create a new rule in the appropriate domain directory (e.g., `src/in_cluster_checks/rules/hw/hw_validations.py`):
 
 ```python
 from in_cluster_checks.core.rule import Rule
 from in_cluster_checks.core.rule_result import RuleResult
-from in_cluster_checks.utils.enums import Objectives, Status
-
+from in_cluster_checks.utils.enums import Objectives
 
 class YourNewRule(Rule):
-    """Brief description of what this rule validates."""
+    """Rule description - what this rule verifies."""
 
     # Define which nodes this rule applies to
     objective_hosts = [Objectives.ALL_NODES]  # or MASTERS, WORKERS, etc.
-
-    def set_document(self):
-        """Set rule metadata."""
-        self.unique_name = "your_new_rule"  # Must be unique without spaces in small letters!
-        self.title = "Human-readable rule title"
+    unique_name = "your_new_rule"  # Must be unique, lowercase with underscores
+    title = "Human-readable rule title"
+    links = [
+        "https://link-to-documentation-or-kb-article",
+    ]
 
     def run_rule(self):
-        """Execute the validation logic."""
+        """Execute the rule logic."""
         # Run command on the node
         return_code, stdout, stderr = self.run_cmd("your-command")
 
         # Parse output and determine pass/fail
         if return_code == 0:
-            return RuleResult.passed("Validation passed")
+            return RuleResult.passed("Rule passed")
         else:
-            return RuleResult.failed(f"Validation failed: {stderr}")
+            return RuleResult.failed(f"Rule failed: {stderr}")
 ```
+
+**Best Practices:**
+- Use descriptive `unique_name` values (e.g., `is_disk_space_sufficient`, `is_network_reachable`)
+- Include helpful error messages in failed results
+- Use `RuleResult.warning()` for non-critical issues
+- Parse command output carefully and handle edge cases
 
 ### 2. Add Rule to Domain
 
 Add your rule to the appropriate domain in `src/in_cluster_checks/domains/`:
 
 ```python
-from in_cluster_checks.rules.hw.your_file import YourNewRule
+from in_cluster_checks.rules.hw.hw_validations import YourNewRule
 
 class HWValidationDomain(RuleDomain):
     def get_rule_classes(self) -> List[type]:
@@ -193,37 +134,78 @@ class HWValidationDomain(RuleDomain):
 
 ### 3. Write Tests
 
-Create related tests in `tests/rules/`:
+Create tests in the appropriate test file (e.g., `tests/rules/hw/test_hw_validations.py`):
 
 ```python
-def test_your_new_rule():
-    """Test your new rule."""
-    rule = YourNewRule()
-    # Test with mock data
-    # Assert expected behavior
+import pytest
+
+from in_cluster_checks.rules.hw.hw_validations import YourNewRule
+from tests.pytest_tools.test_operator_base import CmdOutput
+from tests.pytest_tools.test_rule_base import RuleTestBase, RuleScenarioParams
+
+
+class TestYourNewRule(RuleTestBase):
+    """Test YourNewRule."""
+
+    tested_type = YourNewRule
+
+    scenario_passed = [
+        RuleScenarioParams(
+            "rule passes when condition is met",
+            {"your-command": CmdOutput("expected output")},
+        ),
+    ]
+
+    scenario_failed = [
+        RuleScenarioParams(
+            "rule fails when condition is not met",
+            {"your-command": CmdOutput("error output", return_code=1)},
+            failed_msg="Rule failed: error output",
+        ),
+    ]
+
+    @pytest.mark.parametrize("scenario_params", scenario_passed)
+    def test_scenario_passed(self, scenario_params, tested_object):
+        RuleTestBase.test_scenario_passed(self, scenario_params, tested_object)
+
+    @pytest.mark.parametrize("scenario_params", scenario_failed)
+    def test_scenario_failed(self, scenario_params, tested_object):
+        RuleTestBase.test_scenario_failed(self, scenario_params, tested_object)
 ```
 
 ### 4. Run Tests
 
 ```bash
-pytest tests/rules/hw/test_your_new_rule.py -v
+# Activate virtual environment first
+source .venv/bin/activate
+
+# Run specific test
+pytest tests/rules/hw/test_hw_validations.py::TestYourNewRule -v
+
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=src/in_cluster_checks --cov-report=term-missing
 ```
 
 ## Adding New Domains
 
-To add a new domain:
+To add a new domain (only if the functionality doesn't fit existing domains):
 
 ### 1. Create Domain Class
 
-Create a new file in `src/in_cluster_checks/domains/`:
+Create a new file in `src/in_cluster_checks/domains/` (e.g., `your_domain.py`):
 
 ```python
 from typing import List
+
 from in_cluster_checks.core.domain import RuleDomain
+from in_cluster_checks.rules.your_domain.your_rules import YourRule1, YourRule2
 
 
-class YourNewDomain(RuleDomain):
-    """Description of this validation domain."""
+class YourDomain(RuleDomain):
+    """Description of this rule domain."""
 
     def domain_name(self) -> str:
         """Return unique domain name."""
@@ -232,98 +214,35 @@ class YourNewDomain(RuleDomain):
     def get_rule_classes(self) -> List[type]:
         """Return list of rule classes in this domain."""
         return [
-            # List your domain's rules here
+            YourRule1,
+            YourRule2,
         ]
 ```
 
 ### 2. Create Rule Directory
 
-Create directory structure:
+Create directory structure for your rules:
 ```
 src/in_cluster_checks/rules/your_domain/
 ├── __init__.py
-└── your_validations.py
+└── your_rules.py
 ```
 
-### 3. The Runner Will Auto-Discover It
+### 3. Create Tests
+
+Create test directory:
+```
+tests/domains/test_your_domain.py
+tests/rules/your_domain/
+├── __init__.py
+└── test_your_rules.py
+```
+
+### 4. Auto-Discovery
 
 The `InClusterCheckRunner` automatically discovers all domains in the `domains` package - no manual registration needed!
 
-## Testing Your Changes
-
-### Manual Testing
-<!-- is there an option for the developer to edit code on IDE and copy to the env' or we expect them to develop using 'vi' on the env' itself? -->
-Test your changes manually using the CLI or programmatically:
-
-```bash
-# Using CLI with debug mode to test a specific rule
-in-cluster-checks --debug-rule your_rule_name
-
-# Or test programmatically
-python -c "
-from in_cluster_checks.runner import InClusterCheckRunner
-from pathlib import Path
-
-runner = InClusterCheckRunner(
-    debug_rule_flag=True,
-    debug_rule_name='your_rule_name',
-)
-runner.run(output_path=Path('./test-results.json'))
-"
-```
-
-**Debug Mode Features:**
-- Only runs the specified rule
-- Shows detailed command execution output
-- Disables secret filtering for easier debugging <!-- we should explain how to do it -->
-- Disables JSON output (shows results in console)
-
-### Automated Testing
-
-### Run All Tests
-
-```bash
-pytest
-```
-
-### Run Specific Test File
-
-```bash
-pytest tests/rules/hw/test_hw_validations.py -v
-```
-
-### Run with Coverage
-<!-- what does it mean? -->
-```bash
-pytest --cov=src/in_cluster_checks --cov-report=term-missing
-```
-
-### Coverage Requirements
-
-- Minimum coverage: **80%**
-- All new code should have tests
-- Pre-commit hooks enforce coverage requirements
-
 ## Code Style
-
-### Tools
-
-We use the following tools (enforced by pre-commit):
-
-- **black**: Code formatting (line length: 120)
-- **flake8**: Linting
-- **isort**: Import sorting
-- **Custom linter**: No imports inside functions
-
-### Pre-commit Hooks
-
-Pre-commit hooks run automatically on `git commit`. To run manually:
-
-```bash
-pre-commit run --all-files
-```
-
-### Python Style Guidelines
 
 - **Line length**: 120 characters
 - **Import order**: stdlib, third-party, local (managed by isort)
@@ -336,17 +255,7 @@ pre-commit run --all-files
   - Functions/methods: `snake_case`
   - Constants: `UPPER_CASE`
   - Private: prefix with `_`
-- **Function return values**: When unpacking function returns, accept exactly the values the function returns
-  - Match the number of return values when unpacking tuples
-  - Don't use `_` to ignore values unless you genuinely don't need them
-  - Example:
-    ```python
-    # Good - unpacks all three values that run_cmd() returns
-    return_code, stdout, stderr = self.run_cmd("df -h")
-
-    # Bad - ignoring stderr when the function returns it
-    return_code, stdout, _ = self.run_cmd("df -h")  # Only if stderr is truly unused
-    ```
+- **Function return values**: When unpacking function returns, accept exactly the values the function returns.
 
 ### Code Quality Guidelines
 
@@ -358,28 +267,6 @@ pre-commit run --all-files
 - Don't add comments for self-explanatory code or obvious operations
 - Only add comments to explain complex algorithms, non-obvious workarounds, or important design decisions
 
-**Examples of unnecessary comments (avoid these):**
-```python
-self._lock = threading.Lock()  # Prevent parallel execution (obvious from code)
-with self._lock:  # Use lock (obvious from context)
-self.node_name = node_name  # Set node name (restates what code does)
-```
-
-#### Conditional Checks
-
-**Avoid redundant None checks when checking truthiness.**
-
-```python
-# Good - concise and Pythonic
-if not results:
-    return []
-
-# Bad - redundant check
-if results is None or not results:
-    return []
-```
-
-In Python, `not variable` evaluates to `True` for `None`, empty lists `[]`, empty strings `""`, empty dicts `{}`, `0`, and `False`.
 
 #### DRY Principle
 
@@ -395,92 +282,191 @@ When you find similar code in multiple places:
 - Consistent behavior across all code paths
 - Easier to test and maintain
 - Better separation of concerns
-<!-- I don't think it's a good example... -->
-### Example
 
-```python
-from typing import List
+## Testing
 
-from in_cluster_checks.core.rule import Rule
+### Running Tests
 
-
-class MyNewRule(Rule):
-    """
-    Brief one-line description.
-
-    Longer description if needed. Explain what this rule validates
-    and why it's important.
-
-    Returns:
-        RuleResult: Validation result with pass/fail status
-    """
-
-    objective_hosts = [Rule.Objectives.ALL_NODES]
-
-    def set_document(self):
-        """Set rule metadata."""
-        self.unique_name = "my_new_rule"
-        self.title = "My New Validation Rule"
-
-    def run_rule(self):
-        """Execute validation logic."""
-        return_code, stdout, stderr = self.run_cmd("echo 'test'")
-        return Rule.RuleResult.passed("Validation passed")
-```
-
-## Submitting Code Changes
-
-### 1. Update Your Branch
+Always activate the virtual environment before running tests:
 
 ```bash
-git fetch upstream
-git rebase upstream/main
+source .venv/bin/activate
 ```
 
-### 2. Push to Your Fork
+### Test Commands
+
+**Run specific test file:**
+```bash
+pytest tests/rules/hw/test_hw_validations.py -v
+```
+
+**Run specific test class:**
+```bash
+pytest tests/rules/hw/test_hw_validations.py::TestCheckDiskUsage -v
+```
+
+### Manual Testing
+
+Test specific rules using the CLI:
 
 ```bash
-git push origin YOUR-FEATURE-NAME
+# Test a specific rule in debug mode (disables secret filtering)
+in-cluster-checks --debug-rule your_rule_name
+
+# Run all checks with debug logging
+in-cluster-checks --log-level DEBUG --output ./test-results.json
 ```
 
-### 3. Create Pull Request
+### Writing Tests
 
-1. Go to the [repository on GitHub](https://github.com/sprizend-rh/in-cluster-checks)
-2. Click "New Pull Request"
-3. Select your fork and branch
-4. Fill out the PR template:
-   - **Title**: Brief description of changes
-   - **Description**: Detailed explanation of what and why
-   - **Tests**: How you tested the changes
-   - **Related Issues**: Link any related issues
+See the [Adding New Rules](#adding-new-rules) section for test examples using the `RuleTestBase` framework.
 
-### 4. PR Review Process
+## Development Setup
 
-- **Automated checks**: CI will run tests and linting
-- **Code review**: Maintainers will review your code
-- **Feedback**: Address any requested changes
-- **Merge**: Once approved, maintainers will merge your PR
+### Recommended Development Environment
+
+We recommend developing and testing directly on a machine with OpenShift cluster access. You can edit code using an IDE connected to the remote server via SSH (e.g., [VSCode Remote SSH](https://code.visualstudio.com/docs/remote/ssh)) while running tests locally on that environment.
+
+### Prerequisites
+- Python >= 3.12
+- Access to an OpenShift cluster (for integration testing)
+- `oc` CLI tool installed
+
+### Clone the Repository
+
+1. **Fork the repository** on GitHub: https://github.com/sprizend-rh/in-cluster-checks
+
+2. **Clone your fork**:
+   ```bash
+   git clone https://github.com/YOUR-USERNAME/in-cluster-checks.git
+   cd in-cluster-checks
+   ```
+
+3. **Add upstream remote**:
+   ```bash
+   git remote add upstream https://github.com/sprizend-rh/in-cluster-checks.git
+   ```
+
+### Install Dependencies
+
+1. **Create a virtual environment**:
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   ```
+
+2. **Install development dependencies**:
+   ```bash
+   pip install -e ".[dev]"
+   ```
+
+3. **Install pre-commit hooks**:
+   ```bash
+   pre-commit install
+   ```
+
+4. **Verify setup**:
+   ```bash
+   pytest
+   pre-commit run --all-files
+   ```
+
+If all tests pass and pre-commit runs successfully, your development environment is ready!
+
+### Making Code Changes
+
+1. **Create a new branch**:
+   ```bash
+   git checkout -b YOUR-FEATURE-NAME
+   ```
+
+2. **Make your changes** following the [Code Style](#code-style) guidelines
+
+3. **Test your changes**:
+
+    **Manual testing** - Test specific rules you've added or modified:
+    ```bash
+    source .venv/bin/activate
+    in-cluster-checks --debug-rule your_rule_name
+    ```
+
+    **Automated testing** - Run pre-commit checks (includes code style and pytest):
+    ```bash
+    pre-commit run --all-files
+    ```
+
+    See the [Testing](#testing) section for more detailed testing options and commands.
+
+4. **Commit your changes**:
+   ```bash
+   git add .
+   git commit -m "Description of changes"
+   ```
+
+### Submitting Code Changes
+
+1. **Update Your Branch**
+
+    Sync with the latest changes from upstream:
+    ```bash
+    git fetch upstream
+    git rebase upstream/main
+    ```
+
+2. **Push to Your Fork**
+
+    ```bash
+    git push origin YOUR-FEATURE-NAME
+    ```
+
+3. **Create Pull Request**
+
+    **Option 1: Using the link from push output**
+    1. Click the pull request link displayed after pushing
+    2. Fill out the PR template
+    3. Click "Create pull request"
+
+    **Option 2: Via GitHub**
+    1. Go to the [repository on GitHub](https://github.com/sprizend-rh/in-cluster-checks)
+    2. Click "New Pull Request"
+    3. Select your fork and branch
+    4. Fill out the PR template
+
+    **PR Template Information:**
+    - **Title**: Brief description of changes
+    - **Description**: Detailed explanation of what and why
+    - **Tests**: How you tested the changes
+    - **Related Issues**: Link any related issues
+
+4. **PR Review Process**
+
+    - **Automated checks**: CI runs tests and linting automatically
+    - **Code review**: Maintainers review your code
+    - **Feedback**: Address any requested changes
+    - **Merge**: Once approved, maintainers merge your PR
 
 ### PR Checklist
 
-Before submitting, ensure:
+Before submitting your PR, ensure:
 
-- [ ] Code follows style guidelines (black, flake8, isort pass)
+- [ ] Code follows project style guidelines (`pre-commit run --all-files` passes)
 - [ ] All tests pass (`pytest`)
-- [ ] Coverage is >= 80%
-- [ ] New code has tests
-- [ ] Documentation is updated (if needed)
+- [ ] Code coverage is maintained or improved
+- [ ] New rules have corresponding tests
+- [ ] Documentation is updated (if applicable)
 - [ ] Commit messages are clear and descriptive
 - [ ] No secrets or sensitive data in code/tests
+- [ ] Manual testing completed (for rules: `in-cluster-checks --debug-rule your_rule_name`)
 
 ## Questions?
 
-- **Issues**: Open an issue on GitHub for bugs or feature requests <!-- I should we explain how to do it? -->
-- **Discussions**: Use GitHub Discussions for questions
-- **Email**: Contact maintainers for private concerns
+- **Bug reports or feature requests**: [Open an issue](https://github.com/sprizend-rh/in-cluster-checks/issues/new) on GitHub
+- **General questions**: [Open an issue](https://github.com/sprizend-rh/in-cluster-checks/issues/new) with your question
+- **Documentation and rule information**: Check the [project wiki](https://github.com/sprizend-rh/in-cluster-checks/wiki) for detailed knowledge sharing about rules
+- **Private matters**: Contact maintainers directly via GitHub
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the GPL-3.0-or-later license.
+By contributing, you agree that your contributions will be licensed under the BSD 3-Clause License.
 
-Thank you for contributing! 🎉
+Thank you for contributing!
