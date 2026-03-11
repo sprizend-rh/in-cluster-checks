@@ -1,4 +1,4 @@
-"""Tests for operations.py - Operator and FlowsOperator classes."""
+"""Tests for operations.py - Operator class."""
 
 from unittest.mock import Mock
 
@@ -6,59 +6,34 @@ import pytest
 
 from in_cluster_checks import global_config
 from in_cluster_checks.core.exceptions import UnExpectedSystemOutput
-from in_cluster_checks.core.operations import FlowsOperator, Operator
+from in_cluster_checks.core.operations import Operator
 from in_cluster_checks.utils.enums import Objectives
 
 
+class DummyOperator(Operator):
+    """Dummy operator for testing."""
+
+    objective_hosts = [Objectives.ALL_NODES]
+    unique_name = "test_operator"
+    title = "Test Operator"
+
+
 class TestOperator:
-    """Test base Operator class."""
+    """Test Operator class."""
 
     def test_operator_init(self):
         """Test Operator initialization."""
         mock_executor = Mock()
         mock_executor.ip = "192.168.1.10"
         mock_executor.host_name = "test-node"
-
-        operator = Operator(mock_executor)
-
-        assert operator.get_host_ip() == "192.168.1.10"
-        assert operator.get_host_name() == "test-node"
-
-    def test_run_cmd(self):
-        """Test run_cmd delegates to executor."""
-        mock_executor = Mock()
-        mock_executor.execute_cmd.return_value = (0, "output", "")
-
-        operator = Operator(mock_executor)
-        ret, out, err = operator.run_cmd("test command")
-
-        assert ret == 0
-        assert out == "output"
-        mock_executor.execute_cmd.assert_called_once_with("test command", 120, add_bash_timeout=False)
-
-
-class DummyValidator(FlowsOperator):
-    """Dummy validator for testing."""
-
-    objective_hosts = [Objectives.ALL_NODES]
-    unique_name = "test_validator"
-    title = "Test Rule"
-
-
-class TestFlowsOperator:
-    """Test FlowsOperator class."""
-
-    def test_flows_operator_init(self):
-        """Test FlowsOperator initialization."""
-        mock_executor = Mock()
-        mock_executor.ip = "192.168.1.10"
-        mock_executor.host_name = "test-node"
         mock_executor.roles = []
 
-        validator = DummyValidator(mock_executor)
+        operator = DummyOperator(mock_executor)
 
-        assert validator.get_unique_name() == "test_validator"
-        assert validator.title == "Test Rule"
+        assert operator.get_unique_name() == "test_operator"
+        assert operator.title == "Test Operator"
+        assert operator.get_host_ip() == "192.168.1.10"
+        assert operator.get_host_name() == "test-node"
 
     def test_run_cmd_normal_mode(self):
         """Test run_cmd in normal mode (no debug)."""
@@ -73,12 +48,12 @@ class TestFlowsOperator:
         global_config.debug_rule_flag = False
 
         try:
-            validator = DummyValidator(mock_executor)
-            ret, out, err = validator.run_cmd("test command")
+            operator = DummyOperator(mock_executor)
+            ret, out, err = operator.run_cmd("test command")
 
             assert ret == 0
             assert out == "output"
-            assert "test command" in validator.get_bash_cmd_lines()
+            assert "test command" in operator.get_bash_cmd_lines()
         finally:
             global_config.debug_rule_flag = original_debug
 
@@ -95,8 +70,8 @@ class TestFlowsOperator:
         global_config.debug_rule_flag = True
 
         try:
-            validator = DummyValidator(mock_executor)
-            ret, out, err = validator.run_cmd("test command")
+            operator = DummyOperator(mock_executor)
+            ret, out, err = operator.run_cmd("test command")
 
             # Check return values
             assert ret == 1
@@ -127,11 +102,11 @@ class TestFlowsOperator:
         global_config.debug_rule_flag = False
 
         try:
-            validator = DummyValidator(mock_executor)
-            output = validator.get_output_from_run_cmd("test command")
+            operator = DummyOperator(mock_executor)
+            output = operator.get_output_from_run_cmd("test command")
 
             assert output == "command output"
-            assert "test command" in validator.get_bash_cmd_lines()
+            assert "test command" in operator.get_bash_cmd_lines()
         finally:
             global_config.debug_rule_flag = original_debug
 
@@ -148,8 +123,8 @@ class TestFlowsOperator:
         global_config.debug_rule_flag = True
 
         try:
-            validator = DummyValidator(mock_executor)
-            output = validator.get_output_from_run_cmd("test command")
+            operator = DummyOperator(mock_executor)
+            output = operator.get_output_from_run_cmd("test command")
 
             assert output == "command output"
 
@@ -175,15 +150,15 @@ class TestFlowsOperator:
         global_config.debug_rule_flag = True
 
         try:
-            validator = DummyValidator(mock_executor)
+            operator = DummyOperator(mock_executor)
 
             with pytest.raises(UnExpectedSystemOutput, match="Unexpected output"):
-                validator.get_output_from_run_cmd("test command")
+                operator.get_output_from_run_cmd("test command")
 
-            # Check debug output
+            # Check debug output (comes from run_cmd which is called internally)
             captured = capsys.readouterr()
             assert "[DEBUG] Executing on test-node: test command" in captured.out
-            assert "[DEBUG] Command failed with exception:" in captured.out
+            assert "[DEBUG] Return code: 1" in captured.out
         finally:
             global_config.debug_rule_flag = original_debug
 
@@ -194,10 +169,10 @@ class TestFlowsOperator:
         mock_executor.host_name = "test-node"
         mock_executor.roles = []
 
-        validator = DummyValidator(mock_executor)
-        validator.add_to_rule_log("Test log entry")
+        operator = DummyOperator(mock_executor)
+        operator.add_to_rule_log("Test log entry")
 
-        assert "Test log entry" in validator.get_rule_log()
+        assert "Test log entry" in operator.get_rule_log()
 
     def test_run_cmd_return_is_successful(self):
         """Test run_cmd_return_is_successful returns True for exit code 0."""
@@ -212,8 +187,8 @@ class TestFlowsOperator:
         global_config.debug_rule_flag = False
 
         try:
-            validator = DummyValidator(mock_executor)
-            result = validator.run_cmd_return_is_successful("test command")
+            operator = DummyOperator(mock_executor)
+            result = operator.run_cmd_return_is_successful("test command")
 
             assert result is True
         finally:
@@ -232,8 +207,8 @@ class TestFlowsOperator:
         global_config.debug_rule_flag = False
 
         try:
-            validator = DummyValidator(mock_executor)
-            result = validator.run_cmd_return_is_successful("test command")
+            operator = DummyOperator(mock_executor)
+            result = operator.run_cmd_return_is_successful("test command")
 
             assert result is False
         finally:
@@ -252,8 +227,8 @@ class TestFlowsOperator:
         global_config.debug_rule_flag = False
 
         try:
-            validator = DummyValidator(mock_executor)
-            result = validator.run_and_get_the_nth_field("test command", 2)
+            operator = DummyOperator(mock_executor)
+            result = operator.run_and_get_the_nth_field("test command", 2)
 
             assert result == "field2"
         finally:

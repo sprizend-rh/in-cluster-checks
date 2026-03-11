@@ -201,8 +201,8 @@ class TestNodeExecutor:
             executor.execute_cmd("echo test")
 
     @patch('in_cluster_checks.core.executor.oc')
-    def test_get_output_from_run_cmd_success(self, mock_oc):
-        """Test get_output_from_run_cmd on success."""
+    def test_execute_cmd_success_with_output_stripping(self, mock_oc):
+        """Test execute_cmd returns output that can be stripped."""
         executor = NodeExecutor("test-node", "192.168.1.10")
         executor.is_connected = True
         executor._pod_id = "test-pod"
@@ -213,13 +213,14 @@ class TestNodeExecutor:
         mock_result.err.return_value = ""
         mock_oc.invoke.return_value = mock_result
 
-        output = executor.get_output_from_run_cmd("echo test")
+        rc, out, err = executor.execute_cmd("echo test")
 
-        assert output == "output with spaces"
+        assert rc == 0
+        assert out.strip() == "output with spaces"
 
     @patch('in_cluster_checks.core.executor.oc')
-    def test_get_output_from_run_cmd_failure(self, mock_oc):
-        """Test get_output_from_run_cmd on command failure."""
+    def test_execute_cmd_failure_returns_nonzero(self, mock_oc):
+        """Test execute_cmd returns non-zero exit code on failure."""
         executor = NodeExecutor("test-node", "192.168.1.10")
         executor.is_connected = True
         executor._pod_id = "test-pod"
@@ -230,16 +231,14 @@ class TestNodeExecutor:
         mock_result.err.return_value = "error message"
         mock_oc.invoke.return_value = mock_result
 
-        with pytest.raises(UnExpectedSystemOutput) as exc_info:
-            executor.get_output_from_run_cmd("failing command")
+        rc, out, err = executor.execute_cmd("failing command")
 
-        assert "exit code: 1" in str(exc_info.value)
-        assert exc_info.value.ip == "192.168.1.10"
-        assert exc_info.value.cmd == "failing command"
+        assert rc == 1
+        assert err == "error message"
 
     @patch('in_cluster_checks.core.executor.oc')
-    def test_get_output_from_run_cmd_no_output_timeout_message(self, mock_oc):
-        """Test timeout message when no output."""
+    def test_execute_cmd_timeout_exit_code(self, mock_oc):
+        """Test execute_cmd returns timeout exit code 124."""
         executor = NodeExecutor("test-node", "192.168.1.10")
         executor.is_connected = True
         executor._pod_id = "test-pod"
@@ -250,11 +249,11 @@ class TestNodeExecutor:
         mock_result.err.return_value = ""
         mock_oc.invoke.return_value = mock_result
 
-        with pytest.raises(UnExpectedSystemOutput) as exc_info:
-            executor.get_output_from_run_cmd("slow command")
+        rc, out, err = executor.execute_cmd("slow command")
 
-        assert "No output from command" in exc_info.value.message
-        assert "timed out" in exc_info.value.message
+        assert rc == 124
+        assert out == ""
+        assert err == ""
 
     @patch('in_cluster_checks.core.executor.oc')
     def test_reconnect(self, mock_oc):

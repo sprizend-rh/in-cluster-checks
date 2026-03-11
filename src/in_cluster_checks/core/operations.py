@@ -19,12 +19,18 @@ class Operator:
     """
     Base class for all operations that run commands on nodes or containers.
 
-    Provides common functionality for command execution and output handling.
+    Provides common functionality for command execution, output handling,
+    documentation enforcement, and command logging for flows (validations,
+    data collectors, etc.).
     """
 
     TIMEOUT_EXIT_CODE = 124
     TIMEOUT_KILL_EXIT_CODE = 137
     TIMEOUT_BEFORE_KILL = 60
+
+    # Class variable: Define where this operation should run
+    # e.g., [Objectives.ALL_NODES], [Objectives.ICE_CONTAINER], etc.
+    objective_hosts = []
 
     def __init__(self, host_executor):
         """
@@ -35,6 +41,16 @@ class Operator:
         """
         self._host_executor = host_executor
         self.logger = logging.getLogger(__name__)
+        self.set_initial_values()
+        self._enforce_have_document()
+
+        # Verify objective_hosts is defined
+        if not self.__class__.objective_hosts:
+            raise ValueError(
+                f"objective_hosts not defined for {self.__class__.__name__}. " "Please define as class variable."
+            )
+
+        self.file_utils = FileUtils(self)
 
     def get_host_ip(self) -> str:
         """Get IP address of the host this operator is running on."""
@@ -50,7 +66,7 @@ class Operator:
 
     def run_cmd(self, cmd: str, timeout: int = 120, add_bash_timeout: bool = False) -> tuple:
         """
-        Run command on host/container.
+        Run command on host/container and log it.
 
         Args:
             cmd: Command to execute
@@ -60,14 +76,33 @@ class Operator:
         Returns:
             Tuple of (return_code, stdout, stderr)
         """
-        return_code, stdout, stderr = self._host_executor.execute_cmd(cmd, timeout, add_bash_timeout=add_bash_timeout)
-        return return_code, stdout, stderr
+        self._add_cmd_to_log(cmd)
+
+        # In debug mode, print command BEFORE execution
+        if global_config.debug_rule_flag:
+            host_name = self.get_host_name()
+            print(f"\n[DEBUG] Executing on {host_name}: {cmd}", flush=True)
+
+        return_code, out, err = self._host_executor.execute_cmd(cmd, timeout, add_bash_timeout=add_bash_timeout)
+
+        # Handle debug validation mode vs normal mode differently
+        if global_config.debug_rule_flag:
+            # Debug validation: print output after execution
+            print(f"[DEBUG] Return code: {return_code}", flush=True)
+            if out:
+                print(f"[DEBUG] STDOUT:\n{out}", flush=True)
+            if err:
+                print(f"[DEBUG] STDERR:\n{err}", flush=True)
+            print("=" * 60, flush=True)
+        # Note: In normal mode, we don't log failed commands since many failures are expected
+        # (e.g., prerequisite checks testing if commands exist). The JSON output contains
+        # exception details when validations fail.
+
+        return return_code, out, err
 
     def get_output_from_run_cmd(self, cmd: str, timeout: int = 30, message: str = None) -> str:
         """
-        Run command and return stdout if successful.
-
-        Calls self.run_cmd() which subclasses can override to change execution behavior.
+        Run command, log it, and return stdout if successful.
 
         Args:
             cmd: Command to execute
@@ -166,32 +201,6 @@ class Operator:
 
         return fields[n - 1]
 
-
-class FlowsOperator(Operator):
-    """
-    Base operator for flows (validations, data collectors, etc.).
-
-    Adds documentation and metadata support to base Operator.
-    """
-
-    # Class variable: Define where this operation should run
-    # e.g., [Objectives.ALL_NODES], [Objectives.ICE_CONTAINER], etc.
-    objective_hosts = []
-
-    def __init__(self, host_executor):
-        """Initialize flows operator with documentation requirements."""
-        super().__init__(host_executor)
-        self.set_initial_values()
-        self._enforce_have_document()
-
-        # Verify objective_hosts is defined
-        if not self.__class__.objective_hosts:
-            raise ValueError(
-                f"objective_hosts not defined for {self.__class__.__name__}. " "Please define as class variable."
-            )
-
-        self.file_utils = FileUtils(self)
-
     def set_initial_values(self):
         """Initialize operation metadata fields."""
         self._bash_cmd_lines = []
@@ -250,82 +259,6 @@ class FlowsOperator(Operator):
         """
         self._rule_log.append(log_entry)
 
-    def run_cmd(self, cmd: str, timeout: int = 120, add_bash_timeout: bool = False) -> tuple:
-        """
-        Run command on host/container and log it.
-
-        Args:
-            cmd: Command to execute
-            timeout: Timeout in seconds (default: 120)
-            add_bash_timeout: If True, wraps command with bash timeout command for guaranteed termination
-
-        Returns:
-            Tuple of (return_code, stdout, stderr)
-        """
-        self._add_cmd_to_log(cmd)
-
-        # In debug mode, print command BEFORE execution
-        if global_config.debug_rule_flag:
-            host_name = self.get_host_name()
-            print(f"\n[DEBUG] Executing on {host_name}: {cmd}", flush=True)
-
-        return_code, out, err = super().run_cmd(cmd, timeout, add_bash_timeout=add_bash_timeout)
-
-        # Handle debug validation mode vs normal mode differently
-        if global_config.debug_rule_flag:
-            # Debug validation: print output after execution
-            print(f"[DEBUG] Return code: {return_code}", flush=True)
-            if out:
-                print(f"[DEBUG] STDOUT:\n{out}", flush=True)
-            if err:
-                print(f"[DEBUG] STDERR:\n{err}", flush=True)
-            print("=" * 60, flush=True)
-        # Note: In normal mode, we don't log failed commands since many failures are expected
-        # (e.g., prerequisite checks testing if commands exist). The JSON output contains
-        # exception details when validations fail.
-
-        return return_code, out, err
-
-    def get_output_from_run_cmd(self, cmd: str, timeout: int = 30, message: str = None) -> str:
-        """
-        Run command, log it, and return stdout if successful.
-
-        Args:
-            cmd: Command to execute
-            timeout: Timeout in seconds (default: 30)
-            message: Optional custom error message (unused, for HC compatibility)
-
-        Returns:
-            stdout from command
-
-        Raises:
-            Exception: If command fails (non-zero exit code)
-        """
-        self._add_cmd_to_log(cmd)
-
-        # In debug mode, print command BEFORE execution
-        if global_config.debug_rule_flag:
-            host_name = self.get_host_name()
-            print(f"\n[DEBUG] Executing on {host_name}: {cmd}", flush=True)
-
-        try:
-            result = super().get_output_from_run_cmd(cmd, timeout, message)
-
-            # In debug mode, print output after execution
-            if global_config.debug_rule_flag:
-                print("[DEBUG] Return code: 0", flush=True)
-                print(f"[DEBUG] STDOUT:\n{result}", flush=True)
-                print("=" * 60, flush=True)
-
-            return result
-        except Exception as e:
-            # In debug mode, print the exception
-            if global_config.debug_rule_flag:
-                print(f"[DEBUG] Command failed with exception: {e}", flush=True)
-                print("=" * 60, flush=True)
-            # Command failed - details already logged by executor
-            raise
-
     def _enforce_have_document(self):
         """Verify that documentation fields were set as class variables."""
         if not hasattr(self.__class__, "title") or not self.__class__.title:
@@ -382,7 +315,7 @@ class FlowsOperator(Operator):
         return getattr(self, "_is_clean_cmd_info", False)
 
 
-class DataCollector(FlowsOperator):
+class DataCollector(Operator):
     """
     Base class for data collectors.
 
