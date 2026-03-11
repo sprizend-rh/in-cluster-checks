@@ -1,8 +1,7 @@
 # In-Cluster Checks
 
 [![CI](https://github.com/sprizend-rh/in-cluster-checks/workflows/CI/badge.svg)](https://github.com/sprizend-rh/in-cluster-checks/actions)
-[![codecov](https://codecov.io/gh/sprizend-rh/in-cluster-checks/branch/main/graph/badge.svg)](https://codecov.io/gh/sprizend-rh/in-cluster-checks) <!-- why unknown -->
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0) <!-- to update license -->
+[![License: 3-Clause BSD](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/license/bsd-3-clause)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 
 A generic framework for running health validation rules directly on OpenShift cluster nodes using `oc debug`.
@@ -103,9 +102,11 @@ in-cluster-checks --help
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit pull requests or open issues.
-For more information about contribution, check out for CONTRIBUTING.md 
-<!-- put CONTRIBUTING.md  as link -->
+Contributions are welcome! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on how to:
+- Set up your development environment
+- Add new rules and domains
+- Write tests
+- Submit pull requests
 
 ## Related Projects
 
@@ -117,7 +118,6 @@ For more information about contribution, check out for CONTRIBUTING.md
 This framework was extracted from Red Hat's Pendrive project. The core validation infrastructure is generic and contains no confidential logic, making it suitable for open-source release to benefit the wider OpenShift community.
 
 ## License
-<!-- Update to BSD after pull -->
-GNU General Public License v3.0 or later
+The 3-Clause BSD License
 
 See [LICENSE](LICENSE) for full text.
