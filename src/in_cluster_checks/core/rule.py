@@ -14,11 +14,11 @@ import openshift_client as oc
 from in_cluster_checks import global_config
 from in_cluster_checks.core.data_collector_runner import DataCollectorRunner
 from in_cluster_checks.core.exceptions import UnExpectedSystemOutput
-from in_cluster_checks.core.operations import FlowsOperator
+from in_cluster_checks.core.operations import Operator
 from in_cluster_checks.core.rule_result import PrerequisiteResult, RuleResult
 
 
-class Rule(FlowsOperator):
+class Rule(Operator):
     """
     Base class for all in-cluster rule checks.
 

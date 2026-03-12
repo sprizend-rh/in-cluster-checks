@@ -22,7 +22,7 @@ except ImportError:
     # Will be handled at runtime if NodeExecutor is used
     oc = None
 
-from in_cluster_checks.core.exceptions import HostNotReachable, UnExpectedSystemOutput
+from in_cluster_checks.core.exceptions import HostNotReachable
 from in_cluster_checks.utils.enums import ORCHESTRATOR_HOST_IP, ORCHESTRATOR_HOST_NAME, Objectives
 
 
@@ -276,39 +276,6 @@ class NodeExecutor:
         self.is_connected = False
         self._pod_id = None
         self.connect()
-
-    def get_output_from_run_cmd(self, cmd: str, timeout: int = 30, message: str = "Unexpected output") -> str:
-        """
-        Execute command and return stdout if successful.
-
-        NOTE: This is a simple wrapper for backward compatibility with tests.
-        In production, Operator.get_output_from_run_cmd() should be used instead
-        as it includes proper logging and debug support.
-
-        Args:
-            cmd: Command to execute
-            timeout: Timeout in seconds (default: 30)
-            message: Error message if command fails
-
-        Returns:
-            stdout from command (stripped of trailing whitespace)
-
-        Raises:
-            UnExpectedSystemOutput: If command returns non-zero exit code
-        """
-        return_code, out, err = self.execute_cmd(cmd, timeout)
-
-        if return_code == 0:
-            return out.strip()
-        else:
-            # Command failed
-            error_output = out + err
-            if not out and not err:
-                message = "No output from command. Command may have timed out."
-
-            raise UnExpectedSystemOutput(
-                ip=self.ip, cmd=cmd, output=error_output, message=f"{message} (exit code: {return_code})"
-            )
 
     def close_connection(self):
         """Delete the debug pod."""
