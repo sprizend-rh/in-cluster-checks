@@ -400,31 +400,20 @@ class AllDeploymentsAvailable(OrchestratorRule):
 
     def run_rule(self):
         """Check if all deployments have Available condition set to True."""
-        try:
-            _, out, _ = self.run_oc_command("get", ["deployments", "--all-namespaces", "-o", "json"], timeout=45)
-        except UnExpectedSystemOutput:
-            return RuleResult.failed("Failed to get deployments")
+        # Get all deployments from all namespaces
+        deployment_objects = self.get_all_deployments(all_namespaces=True, timeout=45)
 
-        try:
-            deployments_data = json.loads(out)
-        except json.JSONDecodeError as e:
-            raise UnExpectedSystemOutput(
-                ip=self.get_host_ip(),
-                cmd="oc get deployments --all-namespaces -o json",
-                output=out,
-                message=f"Failed to parse JSON: {e}",
-            )
-
-        if not deployments_data.get("items"):
+        if not deployment_objects:
             return RuleResult.failed("No deployments found in cluster")
 
         unavailable_deployments = []
 
-        for item in deployments_data.get("items", []):
-            metadata = item.get("metadata", {})
+        for item in deployment_objects:
+            item_data = item.as_dict()
+            metadata = item_data.get("metadata", {})
             name = metadata.get("name", "unknown")
             namespace = metadata.get("namespace", "unknown")
-            status = item.get("status", {})
+            status = item_data.get("status", {})
             conditions = status.get("conditions", [])
 
             # Check for "Available" condition
@@ -444,7 +433,7 @@ class AllDeploymentsAvailable(OrchestratorRule):
                     f"{namespace}/{name} - Status: {available_condition.get('status')}, "
                     f"Reason: {reason}, Message: {message}"
                 )
-
+        # Check if there are any deployments that are not available
         if unavailable_deployments:
             message = "Following deployments are not available:\n  "
             message += "\n  ".join(unavailable_deployments)
@@ -462,32 +451,21 @@ class CheckDeploymentsReplicaStatus(OrchestratorRule):
 
     def run_rule(self):
         """Check if all deployments have desired number of replicas ready."""
-        try:
-            _, out, _ = self.run_oc_command("get", ["deployments", "--all-namespaces", "-o", "json"], timeout=45)
-        except UnExpectedSystemOutput:
-            return RuleResult.failed("Failed to get deployments")
+        # Get all deployments from all namespaces
+        deployment_objects = self.get_all_deployments(all_namespaces=True, timeout=45)
 
-        try:
-            deployments_data = json.loads(out)
-        except json.JSONDecodeError as e:
-            raise UnExpectedSystemOutput(
-                ip=self.get_host_ip(),
-                cmd="oc get deployments --all-namespaces -o json",
-                output=out,
-                message=f"Failed to parse JSON: {e}",
-            )
-
-        if not deployments_data.get("items"):
+        if not deployment_objects:
             return RuleResult.failed("No deployments found in cluster")
 
         problematic_deployments = []
-
-        for item in deployments_data.get("items", []):
-            metadata = item.get("metadata", {})
+        # Check each deployment for replica counts
+        for item in deployment_objects:
+            item_data = item.as_dict()
+            metadata = item_data.get("metadata", {})
             name = metadata.get("name", "unknown")
             namespace = metadata.get("namespace", "unknown")
-            spec = item.get("spec", {})
-            status = item.get("status", {})
+            spec = item_data.get("spec", {})
+            status = item_data.get("status", {})
 
             # Get replica counts
             desired_replicas = int(spec.get("replicas", 0))
@@ -511,7 +489,7 @@ class CheckDeploymentsReplicaStatus(OrchestratorRule):
                     f"{namespace}/{name} - Desired: {desired_replicas}, Updated: {updated_replicas} "
                     "(rollout in progress)"
                 )
-
+        # Check if there are any deployments that have replica count issues
         if problematic_deployments:
             message = "Following deployments have replica count issues:\n  "
             message += "\n  ".join(problematic_deployments)
