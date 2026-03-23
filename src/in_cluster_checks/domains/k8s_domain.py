@@ -9,7 +9,9 @@ from typing import List
 
 from in_cluster_checks.core.domain import RuleDomain
 from in_cluster_checks.rules.k8s.k8s_validations import (
+    AllDeploymentsAvailable,
     AllPodsReadyAndRunning,
+    CheckDeploymentsReplicaStatus,
     NodesAreReady,
     NodesCpuAndMemoryStatus,
     OpenshiftOperatorStatus,
@@ -42,5 +44,7 @@ class K8sValidationDomain(RuleDomain):
             NodesCpuAndMemoryStatus,
             ValidateNamespaceStatus,
             ValidateAllDaemonsetsScheduled,
+            AllDeploymentsAvailable,
+            CheckDeploymentsReplicaStatus,
             OpenshiftOperatorStatus,
         ]

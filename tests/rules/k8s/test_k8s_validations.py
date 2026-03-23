@@ -10,7 +10,9 @@ import pytest
 from unittest.mock import Mock
 
 from in_cluster_checks.rules.k8s.k8s_validations import (
+    AllDeploymentsAvailable,
     AllPodsReadyAndRunning,
+    CheckDeploymentsReplicaStatus,
     NodesAreReady,
     NodesCpuAndMemoryStatus,
     OpenshiftOperatorStatus,
@@ -18,6 +20,7 @@ from in_cluster_checks.rules.k8s.k8s_validations import (
     ValidateNamespaceStatus,
 )
 from in_cluster_checks.utils.enums import Status
+from tests.pytest_tools.test_rule_base import RuleScenarioParams, RuleTestBase
 
 
 def create_mock_pod(namespace, name, phase, ready_containers, total_containers):
@@ -239,6 +242,29 @@ def create_mock_namespace(name, phase):
         "status": {"phase": phase},
     }
     return mock_ns
+
+
+def create_mock_deployment(name, namespace, spec=None, status=None):
+    """Create a mock deployment object.
+
+    Args:
+        name: Deployment name
+        namespace: Namespace name
+        spec: Dict with spec fields (e.g., {"replicas": 3})
+        status: Dict with status fields (e.g., {"conditions": [...], "readyReplicas": 3})
+    """
+    mock_deployment = Mock()
+    deployment_dict = {
+        "metadata": {"name": name, "namespace": namespace},
+    }
+
+    if spec:
+        deployment_dict["spec"] = spec
+    if status:
+        deployment_dict["status"] = status
+
+    mock_deployment.as_dict.return_value = deployment_dict
+    return mock_deployment
 
 
 class TestValidateNamespaceStatus:
@@ -531,3 +557,350 @@ another-good-operator                      4.15.29    True        False         
         # progressing-operator (Progressing=True) should be second
         assert result.table_data[1][0] == "progressing-operator"
         assert result.table_data[1][3] == "True"
+
+
+class TestAllDeploymentsAvailable(RuleTestBase):
+    """Test AllDeploymentsAvailable rule."""
+
+    tested_type = AllDeploymentsAvailable
+
+    scenario_passed = [
+        RuleScenarioParams(
+            "all deployments are available",
+            tested_object_mock_dict={
+                "get_all_deployments": Mock(
+                    return_value=[
+                        create_mock_deployment(
+                            "deployment1",
+                            "default",
+                            status={
+                                "conditions": [
+                                    {"type": "Available", "status": "True"},
+                                    {"type": "Progressing", "status": "False"},
+                                ]
+                            },
+                        ),
+                        create_mock_deployment(
+                            "deployment2",
+                            "kube-system",
+                            status={
+                                "conditions": [
+                                    {"type": "Available", "status": "True"},
+                                    {"type": "Progressing", "status": "False"},
+                                ]
+                            },
+                        ),
+                    ]
+                )
+            },
+        ),
+    ]
+
+    scenario_failed = [
+        RuleScenarioParams(
+            "some deployments are not available",
+            tested_object_mock_dict={
+                "get_all_deployments": Mock(
+                    return_value=[
+                        create_mock_deployment(
+                            "deployment1",
+                            "default",
+                            status={
+                                "conditions": [
+                                    {"type": "Available", "status": "True"},
+                                ]
+                            },
+                        ),
+                        create_mock_deployment(
+                            "deployment2",
+                            "kube-system",
+                            status={
+                                "conditions": [
+                                    {
+                                        "type": "Available",
+                                        "status": "False",
+                                        "reason": "MinimumReplicasUnavailable",
+                                        "message": "Deployment does not have minimum availability.",
+                                    },
+                                ]
+                            },
+                        ),
+                    ]
+                )
+            },
+            failed_msg="Following deployments are not available:\n"
+            "  kube-system/deployment2 - Status: False, Reason: MinimumReplicasUnavailable, "
+            "Message: Deployment does not have minimum availability.",
+        ),
+        RuleScenarioParams(
+            "deployment has no Available condition",
+            tested_object_mock_dict={
+                "get_all_deployments": Mock(
+                    return_value=[
+                        create_mock_deployment(
+                            "deployment1",
+                            "default",
+                            status={
+                                "conditions": [
+                                    {"type": "Progressing", "status": "True"},
+                                ]
+                            },
+                        ),
+                    ]
+                )
+            },
+            failed_msg="Following deployments are not available:\n"
+            "  default/deployment1 - No Available condition found",
+        ),
+        RuleScenarioParams(
+            "no deployments found in cluster",
+            tested_object_mock_dict={"get_all_deployments": Mock(return_value=[])},
+            failed_msg="No deployments found in cluster",
+        ),
+        RuleScenarioParams(
+            "deployments are in mixed states",
+            tested_object_mock_dict={
+                "get_all_deployments": Mock(
+                    return_value=[
+                        create_mock_deployment(
+                            "good-deployment",
+                            "default",
+                            status={
+                                "conditions": [
+                                    {"type": "Available", "status": "True"},
+                                ]
+                            },
+                        ),
+                        create_mock_deployment(
+                            "bad-deployment",
+                            "app-ns",
+                            status={
+                                "conditions": [
+                                    {
+                                        "type": "Available",
+                                        "status": "False",
+                                        "reason": "DeploymentFailure",
+                                        "message": "Pod failures",
+                                    },
+                                ]
+                            },
+                        ),
+                        create_mock_deployment(
+                            "no-condition-deployment",
+                            "test-ns",
+                            status={"conditions": []},
+                        ),
+                    ]
+                )
+            },
+            failed_msg="Following deployments are not available:\n"
+            "  app-ns/bad-deployment - Status: False, Reason: DeploymentFailure, Message: Pod failures\n"
+            "  test-ns/no-condition-deployment - No Available condition found",
+        ),
+    ]
+
+    @pytest.mark.parametrize("scenario_params", scenario_passed)
+    def test_scenario_passed(self, scenario_params, tested_object):
+        RuleTestBase.test_scenario_passed(self, scenario_params, tested_object)
+
+    @pytest.mark.parametrize("scenario_params", scenario_failed)
+    def test_scenario_failed(self, scenario_params, tested_object):
+        RuleTestBase.test_scenario_failed(self, scenario_params, tested_object)
+
+
+class TestCheckDeploymentsReplicaStatus(RuleTestBase):
+    """Test CheckDeploymentsReplicaStatus rule."""
+
+    tested_type = CheckDeploymentsReplicaStatus
+
+    scenario_passed = [
+        RuleScenarioParams(
+            "all deployments have correct replica counts",
+            tested_object_mock_dict={
+                "get_all_deployments": Mock(
+                    return_value=[
+                        create_mock_deployment(
+                            "deployment1",
+                            "default",
+                            spec={"replicas": 3},
+                            status={
+                                "replicas": 3,
+                                "readyReplicas": 3,
+                                "availableReplicas": 3,
+                                "updatedReplicas": 3,
+                            },
+                        ),
+                        create_mock_deployment(
+                            "deployment2",
+                            "kube-system",
+                            spec={"replicas": 1},
+                            status={
+                                "replicas": 1,
+                                "readyReplicas": 1,
+                                "availableReplicas": 1,
+                                "updatedReplicas": 1,
+                            },
+                        ),
+                    ]
+                )
+            },
+        ),
+        RuleScenarioParams(
+            "deployment with zero replicas (scaled down) passes",
+            tested_object_mock_dict={
+                "get_all_deployments": Mock(
+                    return_value=[
+                        create_mock_deployment(
+                            "scaled-down",
+                            "default",
+                            spec={"replicas": 0},
+                            status={
+                                "replicas": 0,
+                                "readyReplicas": 0,
+                                "availableReplicas": 0,
+                                "updatedReplicas": 0,
+                            },
+                        ),
+                        create_mock_deployment(
+                            "normal-deployment",
+                            "default",
+                            spec={"replicas": 2},
+                            status={
+                                "replicas": 2,
+                                "readyReplicas": 2,
+                                "availableReplicas": 2,
+                                "updatedReplicas": 2,
+                            },
+                        ),
+                    ]
+                )
+            },
+        ),
+    ]
+
+    scenario_failed = [
+        RuleScenarioParams(
+            "some deployments don't have all replicas ready",
+            tested_object_mock_dict={
+                "get_all_deployments": Mock(
+                    return_value=[
+                        create_mock_deployment(
+                            "deployment1",
+                            "default",
+                            spec={"replicas": 3},
+                            status={
+                                "replicas": 3,
+                                "readyReplicas": 2,
+                                "availableReplicas": 2,
+                                "updatedReplicas": 3,
+                            },
+                        ),
+                    ]
+                )
+            },
+            failed_msg="Following deployments have replica count issues:\n"
+            "  default/deployment1 - Desired: 3, Ready: 2",
+        ),
+        RuleScenarioParams(
+            "some deployments don't have all replicas available",
+            tested_object_mock_dict={
+                "get_all_deployments": Mock(
+                    return_value=[
+                        create_mock_deployment(
+                            "deployment2",
+                            "app-ns",
+                            spec={"replicas": 5},
+                            status={
+                                "replicas": 5,
+                                "readyReplicas": 5,
+                                "availableReplicas": 4,
+                                "updatedReplicas": 5,
+                            },
+                        ),
+                    ]
+                )
+            },
+            failed_msg="Following deployments have replica count issues:\n"
+            "  app-ns/deployment2 - Desired: 5, Available: 4",
+        ),
+        RuleScenarioParams(
+            "deployment has rollout in progress",
+            tested_object_mock_dict={
+                "get_all_deployments": Mock(
+                    return_value=[
+                        create_mock_deployment(
+                            "deployment3",
+                            "prod",
+                            spec={"replicas": 3},
+                            status={
+                                "replicas": 3,
+                                "readyReplicas": 3,
+                                "availableReplicas": 3,
+                                "updatedReplicas": 2,
+                            },
+                        ),
+                    ]
+                )
+            },
+            failed_msg="Following deployments have replica count issues:\n"
+            "  prod/deployment3 - Desired: 3, Updated: 2 (rollout in progress)",
+        ),
+        RuleScenarioParams(
+            "multiple deployments with different issues",
+            tested_object_mock_dict={
+                "get_all_deployments": Mock(
+                    return_value=[
+                        create_mock_deployment(
+                            "good-deployment",
+                            "default",
+                            spec={"replicas": 2},
+                            status={
+                                "replicas": 2,
+                                "readyReplicas": 2,
+                                "availableReplicas": 2,
+                                "updatedReplicas": 2,
+                            },
+                        ),
+                        create_mock_deployment(
+                            "not-ready-deployment",
+                            "app1",
+                            spec={"replicas": 3},
+                            status={
+                                "replicas": 3,
+                                "readyReplicas": 1,
+                                "availableReplicas": 1,
+                                "updatedReplicas": 3,
+                            },
+                        ),
+                        create_mock_deployment(
+                            "updating-deployment",
+                            "app2",
+                            spec={"replicas": 4},
+                            status={
+                                "replicas": 4,
+                                "readyReplicas": 4,
+                                "availableReplicas": 4,
+                                "updatedReplicas": 2,
+                            },
+                        ),
+                    ]
+                )
+            },
+            failed_msg="Following deployments have replica count issues:\n"
+            "  app1/not-ready-deployment - Desired: 3, Ready: 1\n"
+            "  app2/updating-deployment - Desired: 4, Updated: 2 (rollout in progress)",
+        ),
+        RuleScenarioParams(
+            "no deployments found in cluster",
+            tested_object_mock_dict={"get_all_deployments": Mock(return_value=[])},
+            failed_msg="No deployments found in cluster",
+        ),
+    ]
+
+    @pytest.mark.parametrize("scenario_params", scenario_passed)
+    def test_scenario_passed(self, scenario_params, tested_object):
+        RuleTestBase.test_scenario_passed(self, scenario_params, tested_object)
+
+    @pytest.mark.parametrize("scenario_params", scenario_failed)
+    def test_scenario_failed(self, scenario_params, tested_object):
+        RuleTestBase.test_scenario_failed(self, scenario_params, tested_object)

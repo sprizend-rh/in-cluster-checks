@@ -391,6 +391,113 @@ class ValidateAllDaemonsetsScheduled(OrchestratorRule):
         return RuleResult.passed()
 
 
+class AllDeploymentsAvailable(OrchestratorRule):
+    """Validate all deployments are available and ready."""
+
+    objective_hosts = [Objectives.ORCHESTRATOR]
+    unique_name = "all_deployments_available"
+    title = "Verify all deployments are available"
+
+    def run_rule(self):
+        """Check if all deployments have Available condition set to True."""
+        # Get all deployments from all namespaces
+        deployment_objects = self.get_all_deployments()
+
+        if not deployment_objects:
+            return RuleResult.failed("No deployments found in cluster")
+
+        unavailable_deployments = []
+
+        for item in deployment_objects:
+            item_data = item.as_dict()
+            metadata = item_data.get("metadata", {})
+            name = metadata.get("name", "unknown")
+            namespace = metadata.get("namespace", "unknown")
+            status = item_data.get("status", {})
+            conditions = status.get("conditions", [])
+
+            # Check for "Available" condition
+            available_condition = None
+            for condition in conditions:
+                if condition.get("type") == "Available":
+                    available_condition = condition
+                    break
+
+            # If no Available condition found or it's not True, deployment is unavailable
+            if not available_condition:
+                unavailable_deployments.append(f"{namespace}/{name} - No Available condition found")
+            elif available_condition.get("status") != "True":
+                reason = available_condition.get("reason", "Unknown")
+                message = available_condition.get("message", "No message")
+                unavailable_deployments.append(
+                    f"{namespace}/{name} - Status: {available_condition.get('status')}, "
+                    f"Reason: {reason}, Message: {message}"
+                )
+        # Check if there are any deployments that are not available
+        if unavailable_deployments:
+            message = "Following deployments are not available:\n  "
+            message += "\n  ".join(unavailable_deployments)
+            return RuleResult.failed(message)
+
+        return RuleResult.passed()
+
+
+class CheckDeploymentsReplicaStatus(OrchestratorRule):
+    """Validate all deployments have correct replica counts."""
+
+    objective_hosts = [Objectives.ORCHESTRATOR]
+    unique_name = "check_deployments_replica_status"
+    title = "Verify deployment replica counts"
+
+    def run_rule(self):
+        """Check if all deployments have desired number of replicas ready."""
+        # Get all deployments from all namespaces
+        deployment_objects = self.get_all_deployments()
+
+        if not deployment_objects:
+            return RuleResult.failed("No deployments found in cluster")
+
+        problematic_deployments = []
+        # Check each deployment for replica counts
+        for item in deployment_objects:
+            item_data = item.as_dict()
+            metadata = item_data.get("metadata", {})
+            name = metadata.get("name", "unknown")
+            namespace = metadata.get("namespace", "unknown")
+            spec = item_data.get("spec", {})
+            status = item_data.get("status", {})
+
+            # Get replica counts
+            desired_replicas = int(spec.get("replicas", 0))
+            ready_replicas = int(status.get("readyReplicas", 0))
+            available_replicas = int(status.get("availableReplicas", 0))
+            updated_replicas = int(status.get("updatedReplicas", 0))
+
+            # Check if ready replicas match desired
+            if ready_replicas != desired_replicas:
+                problematic_deployments.append(
+                    f"{namespace}/{name} - Desired: {desired_replicas}, Ready: {ready_replicas}"
+                )
+            # Check if available replicas match desired
+            elif available_replicas != desired_replicas:
+                problematic_deployments.append(
+                    f"{namespace}/{name} - Desired: {desired_replicas}, Available: {available_replicas}"
+                )
+            # Check if updated replicas match desired (rollout not complete)
+            elif updated_replicas != desired_replicas:
+                problematic_deployments.append(
+                    f"{namespace}/{name} - Desired: {desired_replicas}, Updated: {updated_replicas} "
+                    "(rollout in progress)"
+                )
+        # Check if there are any deployments that have replica count issues
+        if problematic_deployments:
+            message = "Following deployments have replica count issues:\n  "
+            message += "\n  ".join(problematic_deployments)
+            return RuleResult.failed(message)
+
+        return RuleResult.passed()
+
+
 class OpenshiftOperatorStatus(OrchestratorRule):
     """Check OpenShift cluster operators status and display their status information."""
 
