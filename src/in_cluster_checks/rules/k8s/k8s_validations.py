@@ -498,6 +498,48 @@ class CheckDeploymentsReplicaStatus(OrchestratorRule):
         return RuleResult.passed()
 
 
+# Checking statefulsets is important as they are used for critical components like alerts and monitoring.
+class AllStatefulsetsReady(OrchestratorRule):
+    """Validate all statefulsets are in Ready state."""
+
+    objective_hosts = [Objectives.ORCHESTRATOR]
+    unique_name = "all_statefulsets_ready"
+    title = "Verify all statefulsets are ready"
+
+    def run_rule(self):
+        """Check if all statefulsets have ready replicas matching desired replicas."""
+        # Get all statefulsets from all namespaces
+        statefulset_objects = self.get_all_statefulsets()
+
+        if not statefulset_objects:
+            return RuleResult.failed("No statefulsets found in cluster")
+
+        not_ready_statefulsets = []
+
+        for item in statefulset_objects:
+            item_data = item.as_dict()
+            metadata = item_data.get("metadata", {})
+            name = metadata.get("name", "unknown")
+            namespace = metadata.get("namespace", "unknown")
+            spec = item_data.get("spec", {})
+            status = item_data.get("status", {})
+
+            desired_replicas = int(spec.get("replicas", 0))
+            ready_replicas = int(status.get("readyReplicas", 0))
+            # Only check statefulsets that are expected to have replicas (skip those with 0 desired replicas)
+            if ready_replicas != desired_replicas:
+                not_ready_statefulsets.append(
+                    f"{namespace}/{name} - Desired: {desired_replicas}, Ready: {ready_replicas}"
+                )
+        # Check if there are any statefulsets that are not ready
+        if not_ready_statefulsets:
+            message = "Following statefulsets are not ready:\n  "
+            message += "\n  ".join(not_ready_statefulsets)
+            return RuleResult.failed(message)
+
+        return RuleResult.passed()
+
+
 class OpenshiftOperatorStatus(OrchestratorRule):
     """Check OpenShift cluster operators status and display their status information."""
 

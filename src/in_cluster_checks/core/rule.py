@@ -550,3 +550,38 @@ class OrchestratorRule(Rule):
             except Exception as e:
                 self.logger.error(f"Failed to get deployments: {e}")
                 return []
+
+    # Get all statefulsets from specific or all namespaces
+    def get_all_statefulsets(self, namespace: str = None, timeout: int = 45) -> list:
+        """
+        Get all statefulsets using oc get statefulsets.
+
+        Args:
+            namespace: Specific namespace to query. If None, gets statefulsets from all namespaces.
+            timeout: Timeout in seconds (default: 45)
+
+        Returns:
+            List of statefulset objects (from openshift_client)
+        """
+        # Get all statefulsets from specific namespace
+        if namespace:
+            cmd_str = f"oc get statefulsets -n {namespace}"
+            self._add_cmd_to_log(cmd_str)
+            try:
+                with oc.timeout(timeout):
+                    with oc.project(namespace):
+                        statefulset_objects = oc.selector("statefulsets").objects()
+                        return statefulset_objects
+            except Exception as e:
+                self.logger.error(f"Failed to get statefulsets in namespace {namespace}: {e}")
+                return []
+        else:
+            cmd_str = "oc get statefulsets --all-namespaces"
+            self._add_cmd_to_log(cmd_str)
+            try:
+                with oc.timeout(timeout):
+                    statefulset_objects = oc.selector("statefulsets", all_namespaces=True).objects()
+                    return statefulset_objects
+            except Exception as e:
+                self.logger.error(f"Failed to get statefulsets: {e}")
+                return []

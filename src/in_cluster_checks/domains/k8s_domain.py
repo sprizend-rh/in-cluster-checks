@@ -11,6 +11,7 @@ from in_cluster_checks.core.domain import RuleDomain
 from in_cluster_checks.rules.k8s.k8s_validations import (
     AllDeploymentsAvailable,
     AllPodsReadyAndRunning,
+    AllStatefulsetsReady,
     CheckDeploymentsReplicaStatus,
     NodesAreReady,
     NodesCpuAndMemoryStatus,
@@ -46,5 +47,6 @@ class K8sValidationDomain(RuleDomain):
             ValidateAllDaemonsetsScheduled,
             AllDeploymentsAvailable,
             CheckDeploymentsReplicaStatus,
+            AllStatefulsetsReady,
             OpenshiftOperatorStatus,
         ]
