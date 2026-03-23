@@ -218,71 +218,65 @@ class CpuSpeedValidation(Rule):
     unique_name = "cpu_speed_validation"
     title = "Validate that the All CPU's are configured with High performance"
 
-    def _get_max_speed(self):
-        cmd = "dmidecode -t processor | grep 'Max Speed' | head -n 1"
+    def is_prerequisite_fulfilled(self):
+        """Check if cpufreq files exist (not available on VMs)."""
+        return_code, _, _ = self.run_cmd("test -f /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq")
+        if return_code != 0:
+            return PrerequisiteResult.not_met("CPU frequency files not available (likely a VM)")
+        return PrerequisiteResult.met()
+
+    def _get_max_speed(self, cpu_id):
+        cmd = f"cat /sys/devices/system/cpu/cpu{cpu_id}/cpufreq/cpuinfo_max_freq"
         ret, out, _ = self.run_cmd(cmd)
 
         if ret != 0:
             return None
 
-        if "Max Speed:" not in out:
-            return None
+        speed_khz = out.strip()
+        if not speed_khz.isdigit():
+            raise UnExpectedSystemOutput(self.get_host_ip(), cmd, out, "expected numeric KHz value")
 
-        speed_part = out.split("Max Speed:")[1].strip()
-
-        if "MHz" in speed_part:
-            speed_str = speed_part.replace("MHz", "").strip()
-            if not speed_str.replace(".", "", 1).isdigit():
-                raise UnExpectedSystemOutput(self.get_host_ip(), cmd, out, "expected numeric MHz value")
-            max_speed = float(speed_str)
-        elif "GHz" in speed_part:
-            speed_str = speed_part.replace("GHz", "").strip()
-            if not speed_str.replace(".", "", 1).isdigit():
-                raise UnExpectedSystemOutput(self.get_host_ip(), cmd, out, "expected numeric GHz value")
-            max_speed = float(speed_str) * 1000
-        else:
-            return None
-
-        return max_speed
+        return float(speed_khz)
 
     def run_rule(self):
-        max_cpu_speed = self._get_max_speed()
+        lscpu_cmd = "sudo /bin/lscpu|grep '^CPU(s):'"
+        lscpu = self.get_output_from_run_cmd(lscpu_cmd).strip()
+        total_cpus = lscpu.split(":")[1].strip()
+        total_cpus_int = parse_int(total_cpus, lscpu_cmd, self.get_host_ip())
 
-        if max_cpu_speed is None:
-            return RuleResult.not_applicable("Unable to determine maximum CPU speed from dmidecode")
-
-        cpu_speed_current_cmd = "cat /proc/cpuinfo | grep -ie mhz"
-        # get the speeds
-        out_speed = self.get_output_from_run_cmd(cpu_speed_current_cmd)
-
-        # get the processor id
-        cpu_processor_current_cmd = "cat /proc/cpuinfo | grep -ie processor"
-        out_processor = self.get_output_from_run_cmd(cpu_processor_current_cmd)
-
-        speed_lines = out_speed.splitlines()
-        processor_lines = out_processor.splitlines()
-        processor_ids = [line.split(":")[1] for line in processor_lines]
-
-        index = 0
         bad_list = []
 
-        for line in speed_lines:
-            line_split = line.split(":")
-            speed_str = line_split[1].strip()
-            if not speed_str.replace(".", "", 1).isdigit():
+        for cpu_id in range(total_cpus_int):
+            max_cpu_speed = self._get_max_speed(cpu_id)
+
+            if max_cpu_speed is None:
+                continue
+
+            cpu_speed_current_cmd = f"cat /sys/devices/system/cpu/cpu{cpu_id}/cpufreq/scaling_cur_freq"
+            ret, out, _ = self.run_cmd(cpu_speed_current_cmd)
+
+            if ret != 0:
+                continue
+
+            speed_khz = out.strip()
+            if not speed_khz.isdigit():
                 raise UnExpectedSystemOutput(
-                    self.get_host_ip(), cpu_speed_current_cmd, line, "expected numeric MHz value in /proc/cpuinfo"
+                    self.get_host_ip(), cpu_speed_current_cmd, out, "expected numeric KHz value in sysfs"
                 )
-            cpu_speed = float(speed_str)
-            if (max_cpu_speed - cpu_speed) > 10:  # less then 10 MHZ diff can be becouse of units diffrent
+
+            current_cpu_speed = float(speed_khz)
+
+            threshold = max_cpu_speed * 0.1  # 10% tolerance
+            if (max_cpu_speed - current_cpu_speed) > threshold:
                 # If the cpu is more then the max cpu speed - it can be explain by turbo
                 # which is allowed
-                bad_list.append("CPU ID with processor id {} has speed of {} ".format(processor_ids[index], cpu_speed))
-            index = index + 1
+                bad_list.append(
+                    f"CPU ID {cpu_id} has speed of {current_cpu_speed} KHz (expected max: {max_cpu_speed} KHz)"
+                )
 
         if len(bad_list):
             message = (
-                f"Some CPU are not running on maximum speed ({max_cpu_speed} MHz).\n"
+                "Some CPUs are not running on maximum speed.\n"
                 "Please note that the compute is not configured with maximum performance and therefore\n"
                 "we might be facing performance impact on the VM's/containers that are hosted in this compute.\n\n"
                 + "\n".join(bad_list)

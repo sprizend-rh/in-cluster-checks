@@ -240,25 +240,32 @@ class TestCpuSpeedValidation(RuleTestBase):
 
     tested_type = CpuSpeedValidation
 
-    cpuinfo_speed = """cpu MHz		: 2400.000
-cpu MHz		: 2400.000
-cpu MHz		: 2400.000
-cpu MHz		: 2400.000"""
-
-    cpuinfo_processor = """processor	: 0
-processor	: 1
-processor	: 2
-processor	: 3"""
-
-    dmidecode_max_speed = """	Max Speed: 2400 MHz"""
+    lscpu_4_cpus = "CPU(s):              4"
+    lscpu_2_cpus = "CPU(s):              2"
 
     scenario_passed = [
         RuleScenarioParams(
             "all CPUs running at max speed",
             {
-                "dmidecode -t processor | grep 'Max Speed' | head -n 1": CmdOutput(dmidecode_max_speed),
-                "cat /proc/cpuinfo | grep -ie mhz": CmdOutput(cpuinfo_speed),
-                "cat /proc/cpuinfo | grep -ie processor": CmdOutput(cpuinfo_processor),
+                "test -f /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq": CmdOutput(""),
+                "sudo /bin/lscpu|grep '^CPU(s):'": CmdOutput(lscpu_4_cpus),
+                "cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq": CmdOutput("2400000"),
+                "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq": CmdOutput("2400000"),
+                "cat /sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_max_freq": CmdOutput("2400000"),
+                "cat /sys/devices/system/cpu/cpu1/cpufreq/scaling_cur_freq": CmdOutput("2400000"),
+                "cat /sys/devices/system/cpu/cpu2/cpufreq/cpuinfo_max_freq": CmdOutput("2400000"),
+                "cat /sys/devices/system/cpu/cpu2/cpufreq/scaling_cur_freq": CmdOutput("2400000"),
+                "cat /sys/devices/system/cpu/cpu3/cpufreq/cpuinfo_max_freq": CmdOutput("2400000"),
+                "cat /sys/devices/system/cpu/cpu3/cpufreq/scaling_cur_freq": CmdOutput("2400000"),
+            },
+        ),
+    ]
+
+    scenario_prerequisite_not_fulfilled = [
+        RuleScenarioParams(
+            "cpufreq files not available (VM)",
+            {
+                "test -f /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq": CmdOutput("", return_code=1),
             },
         ),
     ]
@@ -267,27 +274,38 @@ processor	: 3"""
         RuleScenarioParams(
             "some CPUs not at max speed",
             {
-                "dmidecode -t processor | grep 'Max Speed' | head -n 1": CmdOutput(dmidecode_max_speed),
-                "cat /proc/cpuinfo | grep -ie mhz": CmdOutput("cpu MHz		: 1200.000\ncpu MHz		: 2400.000"),
-                "cat /proc/cpuinfo | grep -ie processor": CmdOutput("processor	: 0\nprocessor	: 1"),
+                "test -f /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq": CmdOutput(""),
+                "sudo /bin/lscpu|grep '^CPU(s):'": CmdOutput(lscpu_2_cpus),
+                "cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq": CmdOutput("2400000"),
+                "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq": CmdOutput("1200000"),
+                "cat /sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_max_freq": CmdOutput("2400000"),
+                "cat /sys/devices/system/cpu/cpu1/cpufreq/scaling_cur_freq": CmdOutput("2400000"),
             },
-            failed_msg="Some CPU are not running on maximum speed (2400.0 MHz).\nPlease note that the compute is not configured with maximum performance and therefore\nwe might be facing performance impact on the VM's/containers that are hosted in this compute.\n\nCPU ID with processor id  0 has speed of 1200.0 ",
+            failed_msg="Some CPUs are not running on maximum speed.\nPlease note that the compute is not configured with maximum performance and therefore\nwe might be facing performance impact on the VM's/containers that are hosted in this compute.\n\nCPU ID 0 has speed of 1200000.0 KHz (expected max: 2400000.0 KHz)",
         ),
     ]
 
     scenario_unexpected_system_output = [
         RuleScenarioParams(
-            "dmidecode returns non-numeric max speed",
+            "cpuinfo_max_freq returns non-numeric value",
             {
-                "dmidecode -t processor | grep 'Max Speed' | head -n 1": CmdOutput("	Max Speed: Unknown MHz"),
+                "test -f /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq": CmdOutput(""),
+                "sudo /bin/lscpu|grep '^CPU(s):'": CmdOutput(lscpu_2_cpus),
+                "cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq": CmdOutput("invalid"),
+                "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq": CmdOutput("2400000"),
+                "cat /sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_max_freq": CmdOutput("2400000"),
+                "cat /sys/devices/system/cpu/cpu1/cpufreq/scaling_cur_freq": CmdOutput("2400000"),
             },
         ),
         RuleScenarioParams(
-            "/proc/cpuinfo returns non-numeric cpu speed",
+            "scaling_cur_freq returns non-numeric value",
             {
-                "dmidecode -t processor | grep 'Max Speed' | head -n 1": CmdOutput(dmidecode_max_speed),
-                "cat /proc/cpuinfo | grep -ie mhz": CmdOutput("cpu MHz		: N/A\ncpu MHz		: 2400.000"),
-                "cat /proc/cpuinfo | grep -ie processor": CmdOutput("processor	: 0\nprocessor	: 1"),
+                "test -f /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq": CmdOutput(""),
+                "sudo /bin/lscpu|grep '^CPU(s):'": CmdOutput(lscpu_2_cpus),
+                "cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq": CmdOutput("2400000"),
+                "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq": CmdOutput("invalid"),
+                "cat /sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_max_freq": CmdOutput("2400000"),
+                "cat /sys/devices/system/cpu/cpu1/cpufreq/scaling_cur_freq": CmdOutput("2400000"),
             },
         ),
     ]
@@ -295,6 +313,10 @@ processor	: 3"""
     @pytest.mark.parametrize("scenario_params", scenario_passed)
     def test_scenario_passed(self, scenario_params, tested_object):
         RuleTestBase.test_scenario_passed(self, scenario_params, tested_object)
+
+    @pytest.mark.parametrize("scenario_params", scenario_prerequisite_not_fulfilled)
+    def test_prerequisite_not_fulfilled(self, scenario_params, tested_object):
+        RuleTestBase.test_prerequisite_not_fulfilled(self, scenario_params, tested_object)
 
     @pytest.mark.parametrize("scenario_params", scenario_failed)
     def test_scenario_failed(self, scenario_params, tested_object):
