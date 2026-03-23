@@ -401,7 +401,7 @@ class AllDeploymentsAvailable(OrchestratorRule):
     def run_rule(self):
         """Check if all deployments have Available condition set to True."""
         # Get all deployments from all namespaces
-        deployment_objects = self.get_all_deployments(all_namespaces=True, timeout=45)
+        deployment_objects = self.get_all_deployments()
 
         if not deployment_objects:
             return RuleResult.failed("No deployments found in cluster")
@@ -452,7 +452,7 @@ class CheckDeploymentsReplicaStatus(OrchestratorRule):
     def run_rule(self):
         """Check if all deployments have desired number of replicas ready."""
         # Get all deployments from all namespaces
-        deployment_objects = self.get_all_deployments(all_namespaces=True, timeout=45)
+        deployment_objects = self.get_all_deployments()
 
         if not deployment_objects:
             return RuleResult.failed("No deployments found in cluster")

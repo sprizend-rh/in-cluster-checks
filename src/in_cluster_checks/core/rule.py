@@ -518,13 +518,12 @@ class OrchestratorRule(Rule):
             self.logger.error(f"Failed to get namespaces: {e}")
             return []
 
-    def get_all_deployments(self, all_namespaces: bool = True, namespace: str = None, timeout: int = 45) -> list:
+    def get_all_deployments(self, namespace: str = None, timeout: int = 45) -> list:
         """
         Get all deployments using oc get deployments.
 
         Args:
-            all_namespaces: Get deployments from all namespaces (default: True)
-            namespace: Specific namespace to query (overrides all_namespaces if provided)
+            namespace: Specific namespace to query. If None, gets deployments from all namespaces.
             timeout: Timeout in seconds (default: 45)
 
         Returns:
@@ -542,11 +541,11 @@ class OrchestratorRule(Rule):
                 self.logger.error(f"Failed to get deployments in namespace {namespace}: {e}")
                 return []
         else:
-            cmd_str = "oc get deployments" + (" --all-namespaces" if all_namespaces else "")
+            cmd_str = "oc get deployments --all-namespaces"
             self._add_cmd_to_log(cmd_str)
             try:
                 with oc.timeout(timeout):
-                    deployment_objects = oc.selector("deployments", all_namespaces=all_namespaces).objects()
+                    deployment_objects = oc.selector("deployments", all_namespaces=True).objects()
                     return deployment_objects
             except Exception as e:
                 self.logger.error(f"Failed to get deployments: {e}")
