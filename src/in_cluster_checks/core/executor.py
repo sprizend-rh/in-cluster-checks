@@ -93,6 +93,9 @@ class NodeExecutor:
     Based on support's OpenshiftHostExecutor.
     """
 
+    # Default pod timeout: 4 hours (prevents orphaned pods from Ctrl+C interruptions)
+    DEFAULT_POD_TIMEOUT_HOURS = 4
+
     def __init__(
         self, node_name: str, node_ip: str, roles: list = None, node_labels: str = "", namespace: str = "default"
     ):
@@ -166,6 +169,10 @@ class NodeExecutor:
                 # Modify pod metadata
                 json_pod["metadata"]["name"] = pod_id
                 json_pod["metadata"]["namespace"] = self.namespace
+
+                # Set activeDeadlineSeconds to auto-terminate pod after 8 hours
+                # This prevents orphaned pods from running indefinitely if cleanup fails (e.g., Ctrl+C)
+                json_pod["spec"]["activeDeadlineSeconds"] = self.DEFAULT_POD_TIMEOUT_HOURS * 3600
 
                 # Create the pod
                 oc.create(json.dumps(json_pod))
