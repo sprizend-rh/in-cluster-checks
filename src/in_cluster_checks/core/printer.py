@@ -276,8 +276,17 @@ class StructedPrinter:
                 # If there's a failure message, print it indented
                 if describe_msg:
                     lines = describe_msg.splitlines()
+                    # In debug mode, print up to 50 lines without truncation
+                    if global_config.debug_rule_flag:
+                        if len(lines) > 50:
+                            logger.info(f"      Output truncated - showing first 50 of {len(lines)} lines")
+                            for line in lines[:50]:
+                                logger.info(f"      {line}")
+                        else:
+                            for line in lines:
+                                logger.info(f"      {line}")
                     # If too many lines (>10), show first 5 and summarize
-                    if len(lines) > 10:
+                    elif len(lines) > 10:
                         for line in lines[:5]:
                             logger.info(f"      {line}")
                         logger.info(f"      ... ({len(lines) - 5} more similar warnings)")
