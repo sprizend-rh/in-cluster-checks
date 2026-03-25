@@ -170,9 +170,13 @@ class NodeExecutor:
                 json_pod["metadata"]["name"] = pod_id
                 json_pod["metadata"]["namespace"] = self.namespace
 
-                # Set activeDeadlineSeconds to auto-terminate pod after 8 hours
+                # Set activeDeadlineSeconds to auto-terminate pod after 4 hours
                 # This prevents orphaned pods from running indefinitely if cleanup fails (e.g., Ctrl+C)
                 json_pod["spec"]["activeDeadlineSeconds"] = self.DEFAULT_POD_TIMEOUT_HOURS * 3600
+
+                # Set ttlSecondsAfterFinished to auto-delete pod 5 minutes after completion/failure
+                # This cleans up Error/Completed pods automatically (including DeadlineExceeded)
+                json_pod["spec"]["ttlSecondsAfterFinished"] = 300
 
                 # Create the pod
                 oc.create(json.dumps(json_pod))
