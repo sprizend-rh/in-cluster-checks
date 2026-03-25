@@ -12,6 +12,7 @@ from unittest.mock import Mock
 from in_cluster_checks.rules.k8s.k8s_validations import (
     AllDeploymentsAvailable,
     AllPodsReadyAndRunning,
+    AllStatefulsetsReady,
     CheckDeploymentsReplicaStatus,
     NodesAreReady,
     NodesCpuAndMemoryStatus,
@@ -265,6 +266,29 @@ def create_mock_deployment(name, namespace, spec=None, status=None):
 
     mock_deployment.as_dict.return_value = deployment_dict
     return mock_deployment
+
+
+def create_mock_statefulset(name, namespace, spec=None, status=None):
+    """Create a mock statefulset object.
+
+    Args:
+        name: StatefulSet name
+        namespace: Namespace name
+        spec: Dict with spec fields (e.g., {"replicas": 3})
+        status: Dict with status fields (e.g., {"readyReplicas": 3})
+    """
+    mock_statefulset = Mock()
+    statefulset_dict = {
+        "metadata": {"name": name, "namespace": namespace},
+    }
+
+    if spec:
+        statefulset_dict["spec"] = spec
+    if status:
+        statefulset_dict["status"] = status
+
+    mock_statefulset.as_dict.return_value = statefulset_dict
+    return mock_statefulset
 
 
 class TestValidateNamespaceStatus:
@@ -904,3 +928,126 @@ class TestCheckDeploymentsReplicaStatus(RuleTestBase):
     @pytest.mark.parametrize("scenario_params", scenario_failed)
     def test_scenario_failed(self, scenario_params, tested_object):
         RuleTestBase.test_scenario_failed(self, scenario_params, tested_object)
+
+
+class TestAllStatefulsetsReady(RuleTestBase):
+    """Test AllStatefulsetsReady rule."""
+
+    tested_type = AllStatefulsetsReady
+
+    scenario_passed = [
+        RuleScenarioParams(
+            "all statefulsets are ready",
+            tested_object_mock_dict={
+                "get_all_statefulsets": Mock(
+                    return_value=[
+                        create_mock_statefulset(
+                            "statefulset1",
+                            "default",
+                            spec={"replicas": 3},
+                            status={"readyReplicas": 3},
+                        ),
+                        create_mock_statefulset(
+                            "statefulset2",
+                            "kube-system",
+                            spec={"replicas": 2},
+                            status={"readyReplicas": 2},
+                        ),
+                    ]
+                )
+            },
+        ),
+    ]
+
+    scenario_failed = [
+        RuleScenarioParams(
+            "some statefulsets are not ready",
+            tested_object_mock_dict={
+                "get_all_statefulsets": Mock(
+                    return_value=[
+                        create_mock_statefulset(
+                            "statefulset1",
+                            "default",
+                            spec={"replicas": 3},
+                            status={"readyReplicas": 3},
+                        ),
+                        create_mock_statefulset(
+                            "statefulset2",
+                            "kube-system",
+                            spec={"replicas": 3},
+                            status={"readyReplicas": 1},
+                        ),
+                    ]
+                )
+            },
+            failed_msg="Following statefulsets are not ready:\n"
+            "  kube-system/statefulset2 - Desired: 3, Ready: 1",
+        ),
+        RuleScenarioParams(
+            "statefulset has zero ready replicas",
+            tested_object_mock_dict={
+                "get_all_statefulsets": Mock(
+                    return_value=[
+                        create_mock_statefulset(
+                            "statefulset1",
+                            "default",
+                            spec={"replicas": 3},
+                            status={"readyReplicas": 0},
+                        ),
+                    ]
+                )
+            },
+            failed_msg="Following statefulsets are not ready:\n"
+            "  default/statefulset1 - Desired: 3, Ready: 0",
+        ),        
+        RuleScenarioParams(
+            "statefulsets in mixed states",
+            tested_object_mock_dict={
+                "get_all_statefulsets": Mock(
+                    return_value=[
+                        create_mock_statefulset(
+                            "good-statefulset",
+                            "default",
+                            spec={"replicas": 2},
+                            status={"readyReplicas": 2},
+                        ),
+                        create_mock_statefulset(
+                            "bad-statefulset",
+                            "app-ns",
+                            spec={"replicas": 5},
+                            status={"readyReplicas": 2},
+                        ),
+                        create_mock_statefulset(
+                            "another-bad-statefulset",
+                            "test-ns",
+                            spec={"replicas": 3},
+                            status={"readyReplicas": 0},
+                        ),
+                    ]
+                )
+            },
+            failed_msg="Following statefulsets are not ready:\n"
+            "  app-ns/bad-statefulset - Desired: 5, Ready: 2\n"
+            "  test-ns/another-bad-statefulset - Desired: 3, Ready: 0",
+        ),
+    ]
+
+    scenario_warning = [
+        RuleScenarioParams(
+            "no statefulsets found in cluster",
+            tested_object_mock_dict={"get_all_statefulsets": Mock(return_value=[])},
+            failed_msg="No statefulsets found in cluster",
+        ),
+    ]
+
+    @pytest.mark.parametrize("scenario_params", scenario_passed)
+    def test_scenario_passed(self, scenario_params, tested_object):
+        RuleTestBase.test_scenario_passed(self, scenario_params, tested_object)
+
+    @pytest.mark.parametrize("scenario_params", scenario_failed)
+    def test_scenario_failed(self, scenario_params, tested_object):
+        RuleTestBase.test_scenario_failed(self, scenario_params, tested_object)
+
+    @pytest.mark.parametrize("scenario_params", scenario_warning)
+    def test_scenario_warning(self, scenario_params, tested_object):
+        RuleTestBase.test_scenario_warning(self, scenario_params, tested_object)
