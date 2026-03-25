@@ -620,3 +620,152 @@ class OpenshiftOperatorStatus(OrchestratorRule):
             table_headers=headers,
             table_data=table_data,
         )
+
+
+# Rule to validate all policies are compliant
+class ValidateAllPoliciesCompliant(OrchestratorRule):
+    """Validate all Open Cluster Management policies are compliant."""
+
+    objective_hosts = [Objectives.ORCHESTRATOR]
+    unique_name = "validate_all_policies_compliant"
+    title = "Verify all policies are in compliant state"
+
+    def run_rule(self):
+        """
+        Check if all OCM policies are in Compliant state.
+
+        Returns:
+            RuleResult.passed() if all policies are compliant,
+            RuleResult.failed() if any policies are non-compliant.
+        """
+        try:
+            # Run the oc command to get all policies from all namespaces
+            _, policies_output, _ = self.run_oc_command(
+                "get", ["policies.policy.open-cluster-management.io", "--all-namespaces", "-o", "json"], timeout=45
+            )
+        except UnExpectedSystemOutput:
+            return RuleResult.failed("Failed to get policies from cluster")
+        # Parse the JSON output
+        try:
+            policies_data = json.loads(policies_output)
+        except json.JSONDecodeError as e:
+            raise UnExpectedSystemOutput(
+                ip=self.get_host_ip(),
+                cmd="oc get policies.policy.open-cluster-management.io --all-namespaces -o json",
+                output=policies_output,
+                message=f"Failed to parse JSON: {e}",
+            )
+
+        items = policies_data.get("items", [])
+        # Check if there are any policies
+        if not items:
+            return RuleResult.warning("No policies found in cluster")
+
+        non_compliant_policies = []
+
+        for policy in items:
+            metadata = policy.get("metadata", {})
+            name = metadata.get("name", "unknown")
+            namespace = metadata.get("namespace", "unknown")
+            status = policy.get("status", {})
+            compliance_state = status.get("compliant", "Unknown")
+            # Check if the policy is non-compliant
+            if compliance_state != "Compliant":
+                non_compliant_policies.append(f"{namespace}/{name} - {compliance_state}")
+
+        # Check if there are any non-compliant policies
+        if non_compliant_policies:
+            message = f"There are {len(non_compliant_policies)} non-compliant policies:\n  "
+            message += "\n  ".join(non_compliant_policies)
+            return RuleResult.failed(message)
+
+        return RuleResult.passed()
+
+
+# Rule to verify OpenShift internal image registry is configured and available
+class VerifyInternalRegistry(OrchestratorRule):
+    """Verify OpenShift internal image registry is configured and available."""
+
+    objective_hosts = [Objectives.ORCHESTRATOR]
+    unique_name = "verify_internal_registry"
+    title = "Verify internal image registry is configured and available"
+
+    def run_rule(self):
+        """
+        Check if OpenShift internal image registry is properly configured and running.
+
+        Returns:
+            RuleResult.passed() if registry is configured correctly,
+            RuleResult.failed() if registry is not configured or pods are not running (when Managed).
+        """
+        # Check image registry configuration
+        try:
+            _, registry_config_output, _ = self.run_oc_command(
+                "get",
+                ["config.imageregistry.operator.openshift.io", "cluster", "-o", "json"],
+                timeout=45,
+            )
+        except UnExpectedSystemOutput:
+            return RuleResult.failed("Failed to get image registry configuration")
+
+        # Parse the JSON output
+        try:
+            registry_config = json.loads(registry_config_output)
+        except json.JSONDecodeError as e:
+            raise UnExpectedSystemOutput(
+                ip=self.get_host_ip(),
+                cmd="oc get config.imageregistry.operator.openshift.io cluster -o json",
+                output=registry_config_output,
+                message=f"Failed to parse JSON: {e}",
+            )
+
+        # Check management state
+        spec = registry_config.get("spec", {})
+        management_state = spec.get("managementState", "Unknown")
+
+        # If not Managed, just report the state and pass
+        if management_state != "Managed":
+            return RuleResult.passed(f"Image registry management state: {management_state}")
+
+        # Only check pods if management state is Managed
+        pod_objects = self.get_all_pods(namespace="openshift-image-registry")
+        # Check if there are any pods
+        if not pod_objects:
+            return RuleResult.failed(
+                "Image registry is Managed but no registry pods found in openshift-image-registry namespace.\n"
+            )
+
+        # Check if at least one pod is running with all containers ready
+        running_pods = []
+        not_ready_pods = []
+
+        for pod in pod_objects:
+            pod_data = pod.as_dict()
+            pod_name = pod_data["metadata"]["name"]
+            status_dict = pod_data.get("status", {})
+            phase = status_dict.get("phase", "Unknown")
+
+            if phase != "Running":
+                not_ready_pods.append(f"{pod_name} - Phase: {phase}")
+                continue
+
+            # Check if all containers are ready
+            container_statuses = status_dict.get("containerStatuses", [])
+            all_ready = True
+            for container in container_statuses:
+                if not container.get("ready", False):
+                    all_ready = False
+                    break
+
+            if all_ready:
+                running_pods.append(pod_name)
+            else:
+                not_ready_pods.append(f"{pod_name} - Not all containers ready")
+
+        if not running_pods:
+            message = "Image registry is Managed but no pods are running with all containers ready.\n"
+            if not_ready_pods:
+                message += "Pod status:\n  " + "\n  ".join(not_ready_pods)
+            return RuleResult.failed(message)
+
+        return RuleResult.passed()
