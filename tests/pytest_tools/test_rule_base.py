@@ -61,12 +61,14 @@ class RuleTestBase(OperatorTestBase):
     - scenario_passed: List of RuleScenarioParams for passing tests
     - scenario_failed: List of RuleScenarioParams for failing tests (FAILED status)
     - scenario_warning: List of RuleScenarioParams for warning tests (WARNING status)
+    - scenario_not_applicable: List of RuleScenarioParams for NOT_APPLICABLE tests
     - scenario_unexpected_system_output: List of RuleScenarioParams that should raise UnExpectedSystemOutput
     """
 
     scenario_passed = []
     scenario_failed = []
     scenario_warning = []
+    scenario_not_applicable = []
     scenario_unexpected_system_output = []
 
     def _apply_patches(self, scenario_params, tested_object):
@@ -242,6 +244,34 @@ class RuleTestBase(OperatorTestBase):
             )
 
             # Check warning message if specified
+            if scenario_params.failed_msg is not None:
+                self._assert_message_match(result.message, scenario_params.failed_msg)
+
+    @pytest.mark.parametrize("scenario_params", scenario_not_applicable)
+    def test_scenario_not_applicable(self, scenario_params, tested_object):
+        """
+        Test that validator returns NOT_APPLICABLE status for given scenario.
+
+        Args:
+            scenario_params: RuleScenarioParams with test data
+            tested_object: Rule instance (from fixture)
+        """
+        self._init_validation_object(tested_object, scenario_params)
+
+        with self._apply_patches(scenario_params, tested_object):
+            result = tested_object.run_rule()
+
+            # Should return NOT_APPLICABLE (evaluates to False in boolean context)
+            assert not result, (
+                f"Rule should return NOT_APPLICABLE for scenario: {scenario_params.scenario_title}"
+            )
+
+            # Should be NOT_APPLICABLE status
+            assert result.status == Status.NOT_APPLICABLE, (
+                f"Expected NOT_APPLICABLE status, got {result.status} for scenario: {scenario_params.scenario_title}"
+            )
+
+            # Check message if specified
             if scenario_params.failed_msg is not None:
                 self._assert_message_match(result.message, scenario_params.failed_msg)
 
