@@ -669,11 +669,9 @@ class ValidateAllPoliciesCompliant(OrchestratorRule):
             namespace = metadata.get("namespace", "unknown")
             status = policy.get("status", {})
             compliance_state = status.get("compliant", "Unknown")
-            # Check if the policy is non-compliant
             if compliance_state != "Compliant":
                 non_compliant_policies.append(f"{namespace}/{name} - {compliance_state}")
 
-        # Check if there are any non-compliant policies
         if non_compliant_policies:
             message = f"There are {len(non_compliant_policies)} non-compliant policies:\n  "
             message += "\n  ".join(non_compliant_policies)
@@ -694,9 +692,6 @@ class VerifyInternalRegistry(OrchestratorRule):
         """
         Check if OpenShift internal image registry is properly configured and running.
 
-        Returns:
-            RuleResult.passed() if registry is configured correctly,
-            RuleResult.failed() if registry is not configured or pods are not running (when Managed).
         """
         # Check image registry configuration
         try:
@@ -708,7 +703,6 @@ class VerifyInternalRegistry(OrchestratorRule):
         except UnExpectedSystemOutput:
             return RuleResult.failed("Failed to get image registry configuration")
 
-        # Parse the JSON output
         try:
             registry_config = json.loads(registry_config_output)
         except json.JSONDecodeError as e:
@@ -740,27 +734,13 @@ class VerifyInternalRegistry(OrchestratorRule):
         not_ready_pods = []
 
         for pod in pod_objects:
-            pod_data = pod.as_dict()
-            pod_name = pod_data["metadata"]["name"]
-            status_dict = pod_data.get("status", {})
-            phase = status_dict.get("phase", "Unknown")
-
-            if phase != "Running":
-                not_ready_pods.append(f"{pod_name} - Phase: {phase}")
+            pod_status = self._get_pod_status(pod)
+            if pod_status is None:
                 continue
-
-            # Check if all containers are ready
-            container_statuses = status_dict.get("containerStatuses", [])
-            all_ready = True
-            for container in container_statuses:
-                if not container.get("ready", False):
-                    all_ready = False
-                    break
-
-            if all_ready:
-                running_pods.append(pod_name)
+            if pod_status["all_containers_ready"]:
+                running_pods.append(pod_status["name"])
             else:
-                not_ready_pods.append(f"{pod_name} - Not all containers ready")
+                not_ready_pods.append(pod_status["status_message"])
 
         if not running_pods:
             message = "Image registry is Managed but no pods are running with all containers ready.\n"
@@ -768,4 +748,39 @@ class VerifyInternalRegistry(OrchestratorRule):
                 message += "Pod status:\n  " + "\n  ".join(not_ready_pods)
             return RuleResult.failed(message)
 
+        # Some pods are ready while others are not
+        if not_ready_pods:
+            message = "Image registry is Managed but some pods are not ready.\n"
+            message += "Pod status:\n  " + "\n  ".join(not_ready_pods)
+            return RuleResult.failed(message)
+
         return RuleResult.passed()
+
+    def _get_pod_status(self, pod):
+        pod_data = pod.as_dict()
+        pod_name = pod_data["metadata"]["name"]
+        status_dict = pod_data.get("status", {})
+        phase = status_dict.get("phase", "Unknown")
+
+        # Skip completed pods
+        if phase == "Succeeded":
+            return None
+
+        # Check if all containers are ready
+        container_statuses = status_dict.get("containerStatuses", [])
+        all_ready = all(c.get("ready", False) for c in container_statuses)
+
+        # Build status message
+        if phase != "Running":
+            status_message = f"{pod_name} - Phase: {phase}"
+        elif not all_ready:
+            status_message = f"{pod_name} - Not all containers ready"
+        else:
+            status_message = f"{pod_name} - Ready"
+
+        return {
+            "name": pod_name,
+            "phase": phase,
+            "all_containers_ready": phase == "Running" and all_ready,
+            "status_message": status_message,
+        }
