@@ -1210,6 +1210,9 @@ class TestVerifyInternalRegistry(RuleTestBase):
                 ),
             },
         ),
+    ]
+
+    scenario_not_applicable = [
         RuleScenarioParams(
             "registry is not in Managed state (Removed)",
             tested_object_mock_dict={
@@ -1243,8 +1246,7 @@ class TestVerifyInternalRegistry(RuleTestBase):
                     ]
                 ),
             },
-            failed_msg="Image registry is Managed but no pods are running with all containers ready.\n"
-            "Pod status:\n"
+            failed_msg="Image registry is Managed but following pods are not ready:\n"
             "  image-registry-1 - Phase: Pending",
         ),
         RuleScenarioParams(
@@ -1257,8 +1259,7 @@ class TestVerifyInternalRegistry(RuleTestBase):
                     ]
                 ),
             },
-            failed_msg="Image registry is Managed but no pods are running with all containers ready.\n"
-            "Pod status:\n"
+            failed_msg="Image registry is Managed but following pods are not ready:\n"
             "  image-registry-1 - Not all containers ready",
         ),
     ]
