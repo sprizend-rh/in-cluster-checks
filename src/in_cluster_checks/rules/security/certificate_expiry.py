@@ -23,6 +23,9 @@ class NodeCertificateExpiry(Rule):
     objective_hosts = [Objectives.ALL_NODES]
     unique_name = "node_certificate_expiry"
     title = "Verify node certificates are not expiring soon"
+    links = [
+        "https://github.com/sprizend-rh/in-cluster-checks/wiki/Security-%E2%80%90-Node-certificate-expiry",
+    ]
 
     # Days before expiry to start warning
     WARNING_DAYS = 30
