@@ -74,6 +74,12 @@ The framework is built around these core components:
 
 See [@.claude/rules/in-cluster-check.md](rules/in-cluster-check.md) for detailed architecture documentation.
 
+## GitHub Operations
+
+**IMPORTANT**: Always use the GitHub MCP plugin for GitHub-related operations (listing PRs, reading issues, searching code, etc.) instead of the `gh` CLI.
+
+See [@.claude/rules/github-mcp.md](rules/github-mcp.md) for detailed GitHub MCP usage instructions.
+
 ## Additional Resources
 
 - **Project Wiki**: https://github.com/sprizend-rh/in-cluster-checks/wiki - Detailed knowledge sharing about rules and documentation
