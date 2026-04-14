@@ -54,8 +54,7 @@ class KubeletCaExpiryCheck(OrchestratorRule):
             ca_info = self._get_kubelet_ca_info()
         except UnExpectedSystemOutput:
             return RuleResult.failed(
-                f"Failed to retrieve kubelet CA certificate from secret "
-                f"{self.SECRET_NAMESPACE}/{self.SECRET_NAME}"
+                f"Failed to retrieve kubelet CA certificate from secret " f"{self.SECRET_NAMESPACE}/{self.SECRET_NAME}"
             )
 
         if ca_info.get("status") == "error":
@@ -88,7 +87,8 @@ class KubeletCaExpiryCheck(OrchestratorRule):
         if days_remaining <= self.CRITICAL_DAYS:
             failure_duration = 365 - 73 - days_remaining
             return RuleResult.failed(
-                f"CRITICAL: Kubelet CA certificate expires in {days_remaining} days (threshold: {self.CRITICAL_DAYS} days)\n"
+                f"CRITICAL: Kubelet CA certificate expires in {days_remaining} days "
+                f"(threshold: {self.CRITICAL_DAYS} days)\n"
                 f"Secret: {self.SECRET_NAMESPACE}/{self.SECRET_NAME}\n"
                 f"Expiry Date: {end_date}\n\n"
                 f"CA rotation should have happened at ~73 days remaining (~292 days after creation).\n"
