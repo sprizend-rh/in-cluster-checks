@@ -6,6 +6,7 @@ Adapted from healthcheck-backup/HealthChecks/tests/pytest/flows/HW/test_hw_valid
 
 import pytest
 
+from in_cluster_checks import global_config
 from in_cluster_checks.rules.hw.hw_validations import (
     BasicFreeMemoryValidation,
     CheckDiskUsage,
@@ -14,6 +15,9 @@ from in_cluster_checks.rules.hw.hw_validations import (
     HwSysClockCompare,
     TemperatureValidation,
 )
+from in_cluster_checks.utils.enums import Status
+from profiles.loader import ProfileLoader
+from profiles.profile import Profiles
 from tests.pytest_tools.test_operator_base import CmdOutput
 from tests.pytest_tools.test_rule_base import (
     RuleTestBase,
@@ -137,6 +141,25 @@ class TestCPUfreqScalingGovernorValidation(RuleTestBase):
 
     lscpu_4_cpus = "CPU(s):              4"
 
+    # Command outputs for non-performance governors
+    _non_performance_cmds = {
+        "sudo /bin/lscpu|grep '^CPU(s):'": CmdOutput(lscpu_4_cpus),
+        "sudo cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor": CmdOutput("performance"),
+        "sudo cat /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor": CmdOutput("powersave"),
+        "sudo cat /sys/devices/system/cpu/cpu2/cpufreq/scaling_governor": CmdOutput("performance"),
+        "sudo cat /sys/devices/system/cpu/cpu3/cpufreq/scaling_governor": CmdOutput("ondemand"),
+    }
+
+    @pytest.fixture(autouse=True)
+    def setup_profiles(self):
+        """Load profiles for testing."""
+        profiles = Profiles()
+        ProfileLoader.load(profiles)
+        global_config.profiles_hierarchy = profiles
+        # Default to general profile
+        global_config.active_profile = "general"
+        yield profiles
+
     scenario_passed = [
         RuleScenarioParams(
             "all CPUs set to performance",
@@ -150,27 +173,81 @@ class TestCPUfreqScalingGovernorValidation(RuleTestBase):
         ),
     ]
 
-    scenario_failed = [
-        RuleScenarioParams(
-            "some CPUs not set to performance",
-            {
-                "sudo /bin/lscpu|grep '^CPU(s):'": CmdOutput(lscpu_4_cpus),
-                "sudo cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor": CmdOutput("performance"),
-                "sudo cat /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor": CmdOutput("powersave"),
-                "sudo cat /sys/devices/system/cpu/cpu2/cpufreq/scaling_governor": CmdOutput("performance"),
-                "sudo cat /sys/devices/system/cpu/cpu3/cpufreq/scaling_governor": CmdOutput("ondemand"),
-            },
-            failed_msg="CPU Governor not set to PERFORMANCE\nCPU1 -> powersave\nCPU3 -> ondemand",
-        ),
-    ]
-
     @pytest.mark.parametrize("scenario_params", scenario_passed)
     def test_scenario_passed(self, scenario_params, tested_object):
         RuleTestBase.test_scenario_passed(self, scenario_params, tested_object)
 
-    @pytest.mark.parametrize("scenario_params", scenario_failed)
-    def test_scenario_failed(self, scenario_params, tested_object):
-        RuleTestBase.test_scenario_failed(self, scenario_params, tested_object)
+    def test_telco_profile_returns_failed(self, tested_object):
+        """Test that telco profiles return FAILED when CPUs not set to performance."""
+        global_config.active_profile = "telco-base"
+
+        scenario = RuleScenarioParams(
+            "telco profile - non-performance CPUs",
+            self._non_performance_cmds,
+        )
+
+        self._init_validation_object(tested_object, scenario)
+
+        with self._apply_patches(scenario, tested_object):
+            result = tested_object.run_rule()
+
+        assert result.status == Status.FAILED
+        assert "CPU Governor not set to PERFORMANCE" in result.message
+        assert "CPU1 -> powersave" in result.message
+        assert "CPU3 -> ondemand" in result.message
+
+    def test_telco_derivative_profile_returns_failed(self, tested_object):
+        """Test that telco derivative profiles (e.g., rh-nokia) return FAILED."""
+        global_config.active_profile = "rh-nokia"
+
+        scenario = RuleScenarioParams(
+            "rh-nokia profile - non-performance CPUs",
+            self._non_performance_cmds,
+        )
+
+        self._init_validation_object(tested_object, scenario)
+
+        with self._apply_patches(scenario, tested_object):
+            result = tested_object.run_rule()
+
+        assert result.status == Status.FAILED
+        assert "CPU Governor not set to PERFORMANCE" in result.message
+
+    def test_non_telco_profile_returns_warning(self, tested_object):
+        """Test that non-telco profiles return WARNING when CPUs not set to performance."""
+        global_config.active_profile = "general"
+
+        scenario = RuleScenarioParams(
+            "general profile - non-performance CPUs",
+            self._non_performance_cmds,
+        )
+
+        self._init_validation_object(tested_object, scenario)
+
+        with self._apply_patches(scenario, tested_object):
+            result = tested_object.run_rule()
+
+        assert result.status == Status.WARNING
+        assert "CPU Governor not set to PERFORMANCE" in result.message
+        assert "CPU1 -> powersave" in result.message
+        assert "CPU3 -> ondemand" in result.message
+
+    def test_ai_profile_returns_warning(self, tested_object):
+        """Test that ai-base profile returns WARNING (not telco-related)."""
+        global_config.active_profile = "ai-base"
+
+        scenario = RuleScenarioParams(
+            "ai-base profile - non-performance CPUs",
+            self._non_performance_cmds,
+        )
+
+        self._init_validation_object(tested_object, scenario)
+
+        with self._apply_patches(scenario, tested_object):
+            result = tested_object.run_rule()
+
+        assert result.status == Status.WARNING
+        assert "CPU Governor not set to PERFORMANCE" in result.message
 
 
 class TestTemperatureValidation(RuleTestBase):
