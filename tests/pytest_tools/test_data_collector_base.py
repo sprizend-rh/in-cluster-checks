@@ -17,6 +17,9 @@ class DataCollectorScenarioParams(ScenarioParams):
         scenario_title: str,
         cmd_input_output_dict: dict,
         scenario_res: any,
+        oc_cmd_output_dict: dict = None,
+        data_collector_dict: dict = None,
+        tested_object_mock_dict: dict = None,
     ):
         """
         Initialize data collector scenario parameters.
@@ -25,8 +28,19 @@ class DataCollectorScenarioParams(ScenarioParams):
             scenario_title: Description of scenario
             cmd_input_output_dict: Map of {command: CmdOutput}
             scenario_res: Expected result from collect_data()
+            oc_cmd_output_dict: Map of {(command, tuple(args)): CmdOutput} for run_oc_command()
+            data_collector_dict: Map of {DataCollectorClass: expected_result}
+            tested_object_mock_dict: Map of {method_name: Mock} for mocking tested object methods
         """
-        super().__init__(scenario_title, cmd_input_output_dict, None)
+        super().__init__(
+            scenario_title,
+            cmd_input_output_dict,
+            None,  # rsh_cmd_output_dict
+            oc_cmd_output_dict,
+            data_collector_dict,
+            None,  # library_mocks_dict
+            tested_object_mock_dict,
+        )
         self.scenario_res = scenario_res
 
 
