@@ -144,6 +144,30 @@ class YourNewRule(Rule):
             return RuleResult.failed(f"Rule failed: {stderr}")
 ```
 
+**Documentation - links field:**
+
+The `links` field should contain references to documentation about the rule:
+
+1. **Create a Wiki page** for the new rule at https://github.com/sprizend-rh/in-cluster-checks/wiki
+   - Use the [wiki template](https://github.com/sprizend-rh/in-cluster-checks/wiki) to create the page
+   - Document what the rule checks, why it's important, and troubleshooting steps
+   - Include example output or scenarios
+
+2. **Add the Wiki URL** to the `links` field:
+   ```python
+   links = [
+       "https://github.com/sprizend-rh/in-cluster-checks/wiki/YourNewRule",
+   ]
+   ```
+
+3. **Additional documentation URLs** can also be included (Knowledge Base articles, OpenShift docs, bug reports, etc.):
+   ```python
+   links = [
+       "https://github.com/sprizend-rh/in-cluster-checks/wiki/YourNewRule",
+       "https://access.redhat.com/solutions/12345",
+   ]
+   ```
+
 **Command Security - SafeCmdString:**
 
 **REQUIRED** for all `run_cmd()`, `get_output_from_run_cmd()`, and `run_rsh_cmd()` to prevent command injection.
