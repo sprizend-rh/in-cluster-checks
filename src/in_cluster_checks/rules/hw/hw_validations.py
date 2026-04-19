@@ -8,6 +8,7 @@ Only validators with Deployment_type.OPENSHIFT support are included.
 import re
 from datetime import timedelta
 
+from in_cluster_checks import global_config
 from in_cluster_checks.core.exceptions import UnExpectedSystemOutput
 from in_cluster_checks.core.rule import Rule
 from in_cluster_checks.core.rule_result import PrerequisiteResult, RuleResult
@@ -142,7 +143,14 @@ class CPUfreqScalingGovernorValidation(Rule):
             return RuleResult.passed()
         else:
             message = "CPU Governor not set to PERFORMANCE\n" + "\n".join(error_cpus)
-            return RuleResult.failed(message)
+
+            # Check if running under telco profile (telco-base or its derivatives)
+            is_telco_profile = "telco-base" in global_config.profiles_hierarchy[global_config.active_profile]
+
+            if is_telco_profile:
+                return RuleResult.failed(message)
+            else:
+                return RuleResult.warning(message)
 
 
 class TemperatureValidation(Rule):
