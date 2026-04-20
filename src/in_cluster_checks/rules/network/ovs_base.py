@@ -7,6 +7,7 @@ Provides common base classes for OVS/OVN validation rules and data collectors.
 from in_cluster_checks.core.operations import Operator, OrchestratorDataCollector
 from in_cluster_checks.core.rule import Rule, RuleResult
 from in_cluster_checks.utils.enums import Objectives
+from in_cluster_checks.utils.parsing_utils import parse_json
 from in_cluster_checks.utils.safe_cmd_string import SafeCmdString
 
 
@@ -334,19 +335,19 @@ class NncpOvsBondVlanCollector(OvsOperatorBase, OrchestratorDataCollector):
             Set of bond VLAN names (e.g., {'<bond>.<vlan_id>', '<bond>.<vlan_id>'})
             Empty set if no NNCP resources found or no OVS VLANs configured
         """
-        try:
-            nncps = self.oc_api.select_resources(
-                "nodenetworkconfigurationpolicies.nmstate.io", timeout=60, all_namespaces=True
-            )
-        except Exception as e:
-            self.logger.warning(f"Failed to query NNCP resources: {e}")
+        rc, out, err = self.oc_api.run_oc_command(
+            "get", ["nodenetworkconfigurationpolicies.nmstate.io", "-A", "-o", "json"], raise_on_error=False
+        )
+        if rc != 0:
             return set()
 
+        nncps = parse_json(
+            output=out, cmd="oc get nodenetworkconfigurationpolicies.nmstate.io -A -o json", ip=self.get_host_ip
+        ).get("items", [])
         ovs_bond_vlans = set()
 
         for nncp in nncps:
-            nncp_dict = nncp.as_dict()
-            desired_state = nncp_dict.get("spec", {}).get("desiredState", {})
+            desired_state = nncp.get("spec", {}).get("desiredState", {})
             interfaces = desired_state.get("interfaces", [])
 
             for iface in interfaces:
@@ -391,19 +392,18 @@ class OvnSecondaryNetworkBridgesCollector(OrchestratorDataCollector):
             Set of secondary bridge names (e.g., {'br-secondary1', 'br-secondary2'})
             Empty set if no NNCP resources found or no secondary bridges configured
         """
-        try:
-            nncps = self.oc_api.select_resources(
-                "nodenetworkconfigurationpolicies.nmstate.io", timeout=60, all_namespaces=True
-            )
-        except Exception as e:
-            self.logger.warning(f"Failed to query NNCP resources: {e}")
+        rc, out, err = self.oc_api.run_oc_command(
+            "get", ["nodenetworkconfigurationpolicies.nmstate.io", "-A", "-o", "json"], raise_on_error=False
+        )
+        if rc != 0:
             return set()
 
+        nncps = parse_json(
+            output=out, cmd="oc get nodenetworkconfigurationpolicies.nmstate.io -A -o json", ip=self.get_host_ip
+        ).get("items", [])
         secondary_bridges = set()
-
         for nncp in nncps:
-            nncp_dict = nncp.as_dict()
-            desired_state = nncp_dict.get("spec", {}).get("desiredState", {})
+            desired_state = nncp.get("spec", {}).get("desiredState", {})
 
             # Check for OVN bridge-mappings (indicates secondary network bridge)
             ovn_config = desired_state.get("ovn", {})

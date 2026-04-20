@@ -4,6 +4,7 @@ Tests for OVS network validations.
 Adapted from healthcheck-backup/HealthChecks/tests/pytest/flows/network/test_ovs_validations.py
 """
 
+import json
 from unittest.mock import Mock
 
 import pytest
@@ -189,42 +190,48 @@ class TestNncpOvsBondVlanCollector(DataCollectorTestBase):
 
     tested_type = NncpOvsBondVlanCollector
 
-    # Mock NNCP with OVS bond VLANs
-    nncp_with_vlans = Mock()
-    nncp_with_vlans.as_dict.return_value = {
-        "spec": {
-            "desiredState": {
-                "interfaces": [
-                    {
-                        "type": "ovs-bridge",
-                        "bridge": {
-                            "port": [
-                                {"name": "bond0.110"},
-                                {"name": "bond0.200"},
-                            ]
-                        },
+    # Mock NNCP JSON with OVS bond VLANs
+    nncp_with_vlans_json = json.dumps({
+        "items": [
+            {
+                "spec": {
+                    "desiredState": {
+                        "interfaces": [
+                            {
+                                "type": "ovs-bridge",
+                                "bridge": {
+                                    "port": [
+                                        {"name": "bond0.110"},
+                                        {"name": "bond0.200"},
+                                    ]
+                                },
+                            }
+                        ]
                     }
-                ]
+                }
             }
-        }
-    }
+        ]
+    })
+
+    # Mock empty NNCP response
+    nncp_empty_json = json.dumps({"items": []})
+
+    oc_cmd_key = ("get", ("nodenetworkconfigurationpolicies.nmstate.io", "-A", "-o", "json"))
 
     scenarios = [
         DataCollectorScenarioParams(
             "OVS bond VLANs found",
             {},
             scenario_res={"bond0.110", "bond0.200"},
+            oc_cmd_output_dict={oc_cmd_key: CmdOutput(nncp_with_vlans_json)},
         ),
         DataCollectorScenarioParams(
             "no NNCPs",
             {},
             scenario_res=set(),
+            oc_cmd_output_dict={oc_cmd_key: CmdOutput(nncp_empty_json)},
         ),
     ]
-
-    # Set tested_object_mock_dict for each scenario
-    scenarios[0].tested_object_mock_dict = {"oc_api.select_resources": Mock(return_value=[nncp_with_vlans])}
-    scenarios[1].tested_object_mock_dict = {"oc_api.select_resources": Mock(return_value=[])}
 
     @pytest.mark.parametrize("scenario_params", scenarios)
     def test_collect_data(self, scenario_params, tested_object):
@@ -236,129 +243,144 @@ class TestOvnSecondaryNetworkBridgesCollector(DataCollectorTestBase):
 
     tested_type = OvnSecondaryNetworkBridgesCollector
 
-    # Mock NNCP with secondary network bridges (OVN localnet configuration)
-    nncp_with_secondary_bridge = Mock()
-    nncp_with_secondary_bridge.as_dict.return_value = {
-        "spec": {
-            "desiredState": {
-                "ovn": {
-                    "bridge-mappings": [
-                        {"bridge": "br-vm", "localnet": "localnet1"},
-                    ]
+    # Mock NNCP JSON responses
+    nncp_single_bridge_json = json.dumps({
+        "items": [
+            {
+                "spec": {
+                    "desiredState": {
+                        "ovn": {
+                            "bridge-mappings": [
+                                {"bridge": "br-vm", "localnet": "localnet1"},
+                            ]
+                        }
+                    }
                 }
             }
-        }
-    }
+        ]
+    })
 
-    # Mock NNCP with multiple secondary bridges
-    nncp_with_multiple_bridges = Mock()
-    nncp_with_multiple_bridges.as_dict.return_value = {
-        "spec": {
-            "desiredState": {
-                "ovn": {
-                    "bridge-mappings": [
-                        {"bridge": "br-vm", "localnet": "localnet1"},
-                        {"bridge": "br-tenant", "localnet": "localnet2"},
-                    ]
+    nncp_multiple_bridges_json = json.dumps({
+        "items": [
+            {
+                "spec": {
+                    "desiredState": {
+                        "ovn": {
+                            "bridge-mappings": [
+                                {"bridge": "br-vm", "localnet": "localnet1"},
+                                {"bridge": "br-tenant", "localnet": "localnet2"},
+                            ]
+                        }
+                    }
                 }
             }
-        }
-    }
+        ]
+    })
 
-    # Mock NNCP without bridge-mappings
-    nncp_without_secondary_bridges = Mock()
-    nncp_without_secondary_bridges.as_dict.return_value = {
-        "spec": {
-            "desiredState": {}
-        }
-    }
-
-    # Mock NNCP with empty bridge-mappings list
-    nncp_empty_mappings = Mock()
-    nncp_empty_mappings.as_dict.return_value = {
-        "spec": {
-            "desiredState": {
-                "ovn": {
-                    "bridge-mappings": []
+    nncp_no_mappings_json = json.dumps({
+        "items": [
+            {
+                "spec": {
+                    "desiredState": {}
                 }
             }
-        }
-    }
+        ]
+    })
 
-    # Mock NNCP with incomplete mapping (missing localnet)
-    nncp_missing_localnet = Mock()
-    nncp_missing_localnet.as_dict.return_value = {
-        "spec": {
-            "desiredState": {
-                "ovn": {
-                    "bridge-mappings": [
-                        {"bridge": "br-vm"}
-                    ]
+    nncp_empty_mappings_json = json.dumps({
+        "items": [
+            {
+                "spec": {
+                    "desiredState": {
+                        "ovn": {
+                            "bridge-mappings": []
+                        }
+                    }
                 }
             }
-        }
-    }
+        ]
+    })
 
-    # Mock NNCP with incomplete mapping (missing bridge)
-    nncp_missing_bridge = Mock()
-    nncp_missing_bridge.as_dict.return_value = {
-        "spec": {
-            "desiredState": {
-                "ovn": {
-                    "bridge-mappings": [
-                        {"localnet": "localnet1"}
-                    ]
+    nncp_missing_localnet_json = json.dumps({
+        "items": [
+            {
+                "spec": {
+                    "desiredState": {
+                        "ovn": {
+                            "bridge-mappings": [
+                                {"bridge": "br-vm"}
+                            ]
+                        }
+                    }
                 }
             }
-        }
-    }
+        ]
+    })
+
+    nncp_missing_bridge_json = json.dumps({
+        "items": [
+            {
+                "spec": {
+                    "desiredState": {
+                        "ovn": {
+                            "bridge-mappings": [
+                                {"localnet": "localnet1"}
+                            ]
+                        }
+                    }
+                }
+            }
+        ]
+    })
+
+    nncp_empty_json = json.dumps({"items": []})
+
+    oc_cmd_key = ("get", ("nodenetworkconfigurationpolicies.nmstate.io", "-A", "-o", "json"))
 
     scenarios = [
         DataCollectorScenarioParams(
             "single secondary network bridge found",
             {},
             scenario_res={"br-vm"},
+            oc_cmd_output_dict={oc_cmd_key: CmdOutput(nncp_single_bridge_json)},
         ),
         DataCollectorScenarioParams(
             "multiple secondary network bridges found",
             {},
             scenario_res={"br-vm", "br-tenant"},
+            oc_cmd_output_dict={oc_cmd_key: CmdOutput(nncp_multiple_bridges_json)},
         ),
         DataCollectorScenarioParams(
             "no secondary network bridges (no bridge-mappings)",
             {},
             scenario_res=set(),
+            oc_cmd_output_dict={oc_cmd_key: CmdOutput(nncp_no_mappings_json)},
         ),
         DataCollectorScenarioParams(
             "no NNCPs found",
             {},
             scenario_res=set(),
+            oc_cmd_output_dict={oc_cmd_key: CmdOutput(nncp_empty_json)},
         ),
         DataCollectorScenarioParams(
             "empty bridge-mappings list",
             {},
             scenario_res=set(),
+            oc_cmd_output_dict={oc_cmd_key: CmdOutput(nncp_empty_mappings_json)},
         ),
         DataCollectorScenarioParams(
             "incomplete mapping (missing localnet)",
             {},
             scenario_res=set(),
+            oc_cmd_output_dict={oc_cmd_key: CmdOutput(nncp_missing_localnet_json)},
         ),
         DataCollectorScenarioParams(
             "incomplete mapping (missing bridge)",
             {},
             scenario_res=set(),
+            oc_cmd_output_dict={oc_cmd_key: CmdOutput(nncp_missing_bridge_json)},
         ),
     ]
-
-    # Set tested_object_mock_dict for each scenario
-    scenarios[0].tested_object_mock_dict = {"oc_api.select_resources": Mock(return_value=[nncp_with_secondary_bridge])}
-    scenarios[1].tested_object_mock_dict = {"oc_api.select_resources": Mock(return_value=[nncp_with_multiple_bridges])}
-    scenarios[2].tested_object_mock_dict = {"oc_api.select_resources": Mock(return_value=[nncp_without_secondary_bridges])}
-    scenarios[3].tested_object_mock_dict = {"oc_api.select_resources": Mock(return_value=[])}
-    scenarios[4].tested_object_mock_dict = {"oc_api.select_resources": Mock(return_value=[nncp_empty_mappings])}
-    scenarios[5].tested_object_mock_dict = {"oc_api.select_resources": Mock(return_value=[nncp_missing_localnet])}
-    scenarios[6].tested_object_mock_dict = {"oc_api.select_resources": Mock(return_value=[nncp_missing_bridge])}
 
     @pytest.mark.parametrize("scenario_params", scenarios)
     def test_collect_data(self, scenario_params, tested_object):
