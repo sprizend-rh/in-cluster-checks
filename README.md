@@ -1,3 +1,8 @@
+# ⚠️ MOVED TO REDHATINSIGHTS
+**This repository is no longer maintained here. Please find the latest code at:**
+**[https://github.com/RedHatInsights/incluster-checks](https://github.com/RedHatInsights/incluster-checks)**
+---
+
 # In-Cluster Checks
 
 [![CI](https://github.com/sprizend-rh/in-cluster-checks/workflows/CI/badge.svg)](https://github.com/sprizend-rh/in-cluster-checks/actions)
